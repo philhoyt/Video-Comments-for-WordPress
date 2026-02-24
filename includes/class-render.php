@@ -270,6 +270,14 @@ class Video_Comments_Render {
 			$attr_string .= '' === $val ? ' ' . $key : ' ' . $key . '="' . esc_attr( $val ) . '"';
 		}
 
+		/**
+		 * Fires each time a video player is output on the front end.
+		 * Used by Video_Comments_Usage to count renders for alert thresholds.
+		 *
+		 * @param string $playback_id Mux playback ID being rendered.
+		 */
+		do_action( 'video_comments_player_rendered', $playback_id );
+
 		ob_start();
 		?>
 		<div class="video-comment">

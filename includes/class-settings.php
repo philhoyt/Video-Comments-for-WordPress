@@ -20,11 +20,13 @@ class Video_Comments_Settings {
 
 	/** Default option values. */
 	private const DEFAULTS = [
-		'enabled'          => 1,
-		'allow_guests'     => 1,
-		'max_size_mb'      => 50,
-		'mux_token_id'     => '',
-		'mux_token_secret' => '',
+		'enabled'            => 1,
+		'allow_guests'       => 1,
+		'max_size_mb'        => 50,
+		'play_alert_daily'   => 0,
+		'play_alert_monthly' => 0,
+		'mux_token_id'       => '',
+		'mux_token_secret'   => '',
 	];
 
 	public static function get_instance(): self {
@@ -135,6 +137,13 @@ class Video_Comments_Settings {
 		);
 
 		add_settings_section(
+			'vc_alerts',
+			__( 'Usage Alerts', 'video-comments' ),
+			[ $this, 'render_alerts_section_description' ],
+			'video-comments'
+		);
+
+		add_settings_section(
 			'vc_mux',
 			__( 'Mux API Credentials', 'video-comments' ),
 			[ $this, 'render_mux_section_description' ],
@@ -169,6 +178,35 @@ class Video_Comments_Settings {
 			[ 'name' => 'max_size_mb', 'min' => 1, 'max' => 2048 ]
 		);
 
+		// Usage alert fields.
+		add_settings_field(
+			'vc_play_alert_daily',
+			__( 'Daily alert threshold', 'video-comments' ),
+			[ $this, 'render_number' ],
+			'video-comments',
+			'vc_alerts',
+			[
+				'name'        => 'play_alert_daily',
+				'min'         => 0,
+				'max'         => 1000000,
+				'description' => __( 'Send an alert when videos are loaded this many times in a single day. Set to 0 to disable.', 'video-comments' ),
+			]
+		);
+
+		add_settings_field(
+			'vc_play_alert_monthly',
+			__( 'Monthly alert threshold', 'video-comments' ),
+			[ $this, 'render_number' ],
+			'video-comments',
+			'vc_alerts',
+			[
+				'name'        => 'play_alert_monthly',
+				'min'         => 0,
+				'max'         => 10000000,
+				'description' => __( 'Send an alert when videos are loaded this many times in a calendar month. Set to 0 to disable.', 'video-comments' ),
+			]
+		);
+
 		// Mux credential fields.
 		add_settings_field(
 			'vc_mux_token_id',
@@ -201,17 +239,40 @@ class Video_Comments_Settings {
 		}
 
 		return [
-			'enabled'          => ! empty( $input['enabled'] ) ? 1 : 0,
-			'allow_guests'     => ! empty( $input['allow_guests'] ) ? 1 : 0,
-			'max_size_mb'      => max( 1, min( 2048, (int) ( $input['max_size_mb'] ?? 50 ) ) ),
-			'mux_token_id'     => sanitize_text_field( $input['mux_token_id'] ?? '' ),
-			'mux_token_secret' => sanitize_text_field( $input['mux_token_secret'] ?? '' ),
+			'enabled'            => ! empty( $input['enabled'] ) ? 1 : 0,
+			'allow_guests'       => ! empty( $input['allow_guests'] ) ? 1 : 0,
+			'max_size_mb'        => max( 1, min( 2048, (int) ( $input['max_size_mb'] ?? 50 ) ) ),
+			'play_alert_daily'   => max( 0, (int) ( $input['play_alert_daily'] ?? 0 ) ),
+			'play_alert_monthly' => max( 0, (int) ( $input['play_alert_monthly'] ?? 0 ) ),
+			'mux_token_id'       => sanitize_text_field( $input['mux_token_id'] ?? '' ),
+			'mux_token_secret'   => sanitize_text_field( $input['mux_token_secret'] ?? '' ),
 		];
 	}
 
 	// -------------------------------------------------------------------------
 	// Field renderers
 	// -------------------------------------------------------------------------
+
+	public function render_alerts_section_description(): void {
+		$usage   = Video_Comments_Usage::get_instance();
+		$daily   = $usage->get_daily_count();
+		$monthly = $usage->get_monthly_count();
+		echo '<p>';
+		printf(
+			/* translators: 1: daily count, 2: monthly count */
+			esc_html__( 'Current usage: %1$s player loads today, %2$s this month.', 'video-comments' ),
+			'<strong>' . esc_html( number_format_i18n( $daily ) ) . '</strong>',
+			'<strong>' . esc_html( number_format_i18n( $monthly ) ) . '</strong>'
+		);
+		echo ' ';
+		printf(
+			/* translators: %s: link to Mux billing dashboard */
+			esc_html__( 'These counts reflect page loads containing a video player, not exact streaming minutes. See %s for actual billing.', 'video-comments' ),
+			'<a href="https://dashboard.mux.com/" target="_blank" rel="noopener noreferrer">'
+				. esc_html__( 'Mux billing dashboard', 'video-comments' ) . '</a>'
+		);
+		echo '</p>';
+	}
 
 	public function render_mux_section_description(): void {
 		echo '<p>' . esc_html__( 'Enter your Mux API credentials below, or define VIDEO_COMMENTS_MUX_TOKEN_ID and VIDEO_COMMENTS_MUX_TOKEN_SECRET in wp-config.php to keep secrets out of the database.', 'video-comments' ) . '</p>';
@@ -244,6 +305,9 @@ class Video_Comments_Settings {
 			esc_attr( (string) ( $args['min'] ?? 1 ) ),
 			esc_attr( (string) ( $args['max'] ?? 9999 ) )
 		);
+		if ( ! empty( $args['description'] ) ) {
+			echo '<p class="description">' . esc_html( $args['description'] ) . '</p>';
+		}
 	}
 
 	/** @param array<string,mixed> $args */
