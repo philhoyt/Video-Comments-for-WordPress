@@ -1,0 +1,225 @@
+/**
+ * Video Comments — front-end styles.
+ *
+ * Minimal, theme-agnostic styles. Themes can override any rule
+ * by targeting the .vc-* classes with higher specificity.
+ */
+
+/* --------------------------------------------------------------------------
+   Uploader wrapper
+   -------------------------------------------------------------------------- */
+
+.vc-uploader {
+	margin-top: 1.5em;
+	padding-top: 1.25em;
+	border-top: 1px solid currentColor;
+	opacity: 0.9; /* softens the border against any theme colour */
+	font-size: 0.9em;
+}
+
+/* Restore full opacity for all children so only the border is softened */
+.vc-uploader > * {
+	opacity: 1;
+}
+
+.vc-label {
+	margin: 0 0 0.75em;
+	font-weight: 600;
+	opacity: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Controls row
+   -------------------------------------------------------------------------- */
+
+.vc-uploader__controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5em;
+}
+
+.vc-file-input {
+	/* Let browsers style the file picker natively */
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Buttons — inherit the theme's own submit/element button styles.
+   We add wp-element-button in the PHP markup so block themes style
+   the upload button automatically. These rules provide sensible
+   fallbacks for classic themes and scope the layout-only properties.
+   -------------------------------------------------------------------------- */
+
+.vc-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.vc-btn:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
+/* Upload button — styled by wp-element-button on block themes.
+   Classic-theme fallback mirrors a typical comment submit button. */
+.vc-btn--upload:not(.wp-element-button) {
+	padding: 0.5em 1.1em;
+	border: 1px solid transparent;
+	border-radius: 2px;
+	background-color: #1a1a1a;
+	color: #fff;
+	font-size: inherit;
+	line-height: 1.4;
+	transition: background-color 0.15s ease;
+}
+
+.vc-btn--upload:not(.wp-element-button):hover:not(:disabled) {
+	background-color: #444;
+}
+
+/* Remove/clear button — rendered as a small destructive text link */
+.vc-btn--clear {
+	padding: 0;
+	border: none;
+	background: none;
+	color: #c0392b;
+	font-size: 0.85em;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.vc-btn--clear:hover {
+	color: #922b21;
+}
+
+/* --------------------------------------------------------------------------
+   Progress bar
+   -------------------------------------------------------------------------- */
+
+.vc-progress-wrap {
+	display: flex;
+	align-items: center;
+	gap: 0.5em;
+	margin-top: 0.75em;
+}
+
+.vc-progress {
+	flex: 1 1 auto;
+	height: 6px;
+	border-radius: 3px;
+	overflow: hidden;
+	appearance: none;
+	-webkit-appearance: none;
+	border: none;
+	background: rgba(0, 0, 0, 0.1);
+}
+
+/* Firefox */
+.vc-progress::-moz-progress-bar {
+	background: currentColor;
+	border-radius: 3px;
+}
+
+/* WebKit/Blink */
+.vc-progress::-webkit-progress-bar {
+	background: rgba(0, 0, 0, 0.1);
+	border-radius: 3px;
+}
+
+.vc-progress::-webkit-progress-value {
+	background: currentColor;
+	border-radius: 3px;
+	transition: width 0.1s linear;
+}
+
+.vc-progress-pct {
+	flex: 0 0 3em;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	font-size: 0.8em;
+	opacity: 0.7;
+}
+
+/* --------------------------------------------------------------------------
+   Status text
+   -------------------------------------------------------------------------- */
+
+.vc-status {
+	margin: 0.6em 0 0;
+	min-height: 1.4em;
+	font-size: 0.875em;
+}
+
+.vc-status--info {
+	opacity: 0.75;
+}
+
+.vc-status--success {
+	color: #2e7d32;
+	font-weight: 600;
+}
+
+.vc-status--error {
+	color: #c0392b;
+	font-weight: 600;
+}
+
+.vc-status--notice {
+	opacity: 0.65;
+	font-style: italic;
+}
+
+/* --------------------------------------------------------------------------
+   Inline preview player (shown in uploader after processing completes)
+   -------------------------------------------------------------------------- */
+
+.vc-preview {
+	margin-top: 1em;
+	border-radius: 4px;
+	overflow: hidden;
+	max-width: 480px;
+}
+
+.vc-preview mux-player {
+	display: block;
+	width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   Video player wrapper — default (unstyled) display
+   -------------------------------------------------------------------------- */
+
+.video-comment {
+	margin-bottom: 1em;
+	max-width: 640px;
+}
+
+.video-comment mux-player {
+	display: block;
+	width: 100%;
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+
+/* --------------------------------------------------------------------------
+   Responsive tweaks
+   -------------------------------------------------------------------------- */
+
+@media ( max-width: 480px ) {
+	.vc-uploader__controls {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.vc-preview,
+	.video-comment {
+		max-width: 100%;
+	}
+}

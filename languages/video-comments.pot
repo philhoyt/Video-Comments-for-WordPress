@@ -1,0 +1,201 @@
+# Copyright (C) 2024 Your Name
+# This file is distributed under the same license as the Video Comments plugin.
+msgid ""
+msgstr ""
+"Project-Id-Version: Video Comments 1.0.0\n"
+"Report-Msgid-Bugs-To: https://github.com/your-org/video-comments/issues\n"
+"POT-Creation-Date: 2024-01-01T00:00:00+00:00\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+
+#. Plugin Name of the plugin
+msgid "Video Comments"
+msgstr ""
+
+#. Description of the plugin
+msgid "Extends WordPress comments to support uploading and displaying a video per comment via Mux."
+msgstr ""
+
+#: includes/class-settings.php
+msgid "Video Comments"
+msgstr ""
+
+#: includes/class-settings.php
+msgid "General"
+msgstr ""
+
+#: includes/class-settings.php
+msgid "Mux API Credentials"
+msgstr ""
+
+#: includes/class-settings.php
+msgid "Enter your Mux API credentials below, or define VIDEO_COMMENTS_MUX_TOKEN_ID and VIDEO_COMMENTS_MUX_TOKEN_SECRET in wp-config.php to keep secrets out of the database."
+msgstr ""
+
+#: includes/class-settings.php
+msgid "Enable Video Comments"
+msgstr ""
+
+#: includes/class-settings.php
+msgid "Allow commenters to attach a video"
+msgstr ""
+
+#: includes/class-settings.php
+msgid "Allow Guests"
+msgstr ""
+
+#: includes/class-settings.php
+msgid "Let non-logged-in users upload videos"
+msgstr ""
+
+#: includes/class-settings.php
+msgid "Max Upload Size (MB)"
+msgstr ""
+
+#: includes/class-settings.php
+msgid "Token ID"
+msgstr ""
+
+#: includes/class-settings.php
+msgid "Token Secret"
+msgstr ""
+
+#: includes/class-settings.php
+msgid "Set via constant in wp-config.php"
+msgstr ""
+
+#: includes/class-settings.php
+msgid "Mux credentials are not configured. The video upload UI will be hidden from commenters until credentials are set."
+msgstr ""
+
+#: includes/class-settings.php
+msgid "Video Comments Settings"
+msgstr ""
+
+#: includes/class-rest.php
+msgid "Video Comments is currently disabled."
+msgstr ""
+
+#: includes/class-rest.php
+msgid "Video uploads are not available for guests."
+msgstr ""
+
+#: includes/class-rest.php
+msgid "Security check failed. Please refresh the page."
+msgstr ""
+
+#: includes/class-rest.php
+msgid "Too many requests. Please wait a moment and try again."
+msgstr ""
+
+#: includes/class-rest.php
+msgid "Mux API credentials are not configured. Please contact the site administrator."
+msgstr ""
+
+#: includes/class-rest.php
+msgid "File exceeds the maximum allowed size of %s MB."
+msgstr ""
+
+#: includes/class-rest.php
+msgid "That file type is not allowed. Please upload a video file."
+msgstr ""
+
+#: includes/class-rest.php
+msgid "upload_id is required."
+msgstr ""
+
+#: includes/class-rest.php
+msgid "Mux API returned HTTP %1$s."
+msgstr ""
+
+#: includes/class-rest.php
+msgid "Could not parse Mux API response."
+msgstr ""
+
+#: includes/class-render.php
+msgid "Video (optional)"
+msgstr ""
+
+#: includes/class-render.php
+msgid "Video uploads are not available at this time."
+msgstr ""
+
+#: includes/class-render.php
+msgid "Please log in to attach a video to your comment."
+msgstr ""
+
+#: includes/class-render.php
+msgid "Select a video file"
+msgstr ""
+
+#: includes/class-render.php
+msgid "Upload Video"
+msgstr ""
+
+#: includes/class-render.php
+msgid "Remove video"
+msgstr ""
+
+#: includes/class-render.php
+msgid "Remove"
+msgstr ""
+
+#: includes/class-render.php
+msgid "Select video"
+msgstr ""
+
+#: includes/class-render.php
+msgid "Uploading\xe2\x80\xa6"
+msgstr ""
+
+#: includes/class-render.php
+msgid "Upload complete"
+msgstr ""
+
+#: includes/class-render.php
+msgid "Upload failed. Please try again."
+msgstr ""
+
+#: includes/class-render.php
+msgid "Processing video\xe2\x80\xa6"
+msgstr ""
+
+#: includes/class-render.php
+msgid "Video ready"
+msgstr ""
+
+#: includes/class-render.php
+msgid "Remove video"
+msgstr ""
+
+#: includes/class-render.php
+msgid "Video uploads are not available at this time."
+msgstr ""
+
+#: includes/class-render.php
+msgid "Please log in to attach a video."
+msgstr ""
+
+#: includes/class-render.php
+msgid "File is too large. Maximum size is %s MB."
+msgstr ""
+
+#: includes/class-render.php
+msgid "Please select a video file."
+msgstr ""
+
+#: includes/providers/class-provider-mux.php
+msgid "Unexpected response from Mux when creating upload."
+msgstr ""
+
+#: includes/providers/class-provider-mux.php
+msgid "Invalid upload ID."
+msgstr ""
+
+#: includes/providers/class-provider-mux.php
+msgid "Unexpected response from Mux when fetching upload status."
+msgstr ""
