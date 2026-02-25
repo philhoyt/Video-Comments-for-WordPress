@@ -42,6 +42,23 @@ function video_comments_init(): void {
 add_action( 'plugins_loaded', 'video_comments_init' );
 
 /**
+ * Add a Settings link on the Plugins list page.
+ *
+ * @param array<string,string> $links Existing action links.
+ * @return array<string,string>
+ */
+function video_comments_plugin_action_links( array $links ): array {
+	$settings_link = sprintf(
+		'<a href="%s">%s</a>',
+		esc_url( admin_url( 'options-general.php?page=video-comments' ) ),
+		esc_html__( 'Settings', 'video-comments' )
+	);
+	array_unshift( $links, $settings_link );
+	return $links;
+}
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'video_comments_plugin_action_links' );
+
+/**
  * Activation hook — no DB changes needed in v1.
  */
 function video_comments_activate(): void {
