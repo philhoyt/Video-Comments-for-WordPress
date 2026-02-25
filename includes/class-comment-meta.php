@@ -75,16 +75,6 @@ class Video_Comments_Comment_Meta {
 		// Store on the data array under a private key so it survives into the post hook.
 		$comment_data['_vc_playback_id'] = $playback_id;
 
-		// When a video is attached and the commenter left the text field blank,
-		// JS injects a non-breaking space (U+00A0) so WordPress's empty-content
-		// check is bypassed. Strip it here for clean DB storage.
-		if ( '' !== $playback_id && isset( $comment_data['comment_content'] ) ) {
-			$cleaned = trim( str_replace( "\xc2\xa0", '', (string) $comment_data['comment_content'] ) );
-			if ( '' === $cleaned ) {
-				$comment_data['comment_content'] = '';
-			}
-		}
-
 		return $comment_data;
 	}
 
