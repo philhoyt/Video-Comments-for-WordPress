@@ -12,7 +12,7 @@
 .vc-uploader {
 	margin-top: 1.5em;
 	padding-top: 1.25em;
-	border-top: 1px solid currentColor;
+	border-top: 1px solid currentcolor;
 	opacity: 0.9; /* softens the border against any theme colour */
 	font-size: 0.9em;
 }
@@ -39,7 +39,7 @@
 	justify-content: center;
 	gap: 0.6em;
 	padding: 2em 1.5em;
-	border: 2px dashed currentColor;
+	border: 2px dashed currentcolor;
 	border-radius: 8px;
 	opacity: 0.55;
 	cursor: pointer;
@@ -185,7 +185,7 @@
 
 /* Firefox */
 .vc-progress::-moz-progress-bar {
-	background: currentColor;
+	background: currentcolor;
 	border-radius: 3px;
 }
 
@@ -196,7 +196,7 @@
 }
 
 .vc-progress::-webkit-progress-value {
-	background: currentColor;
+	background: currentcolor;
 	border-radius: 3px;
 	transition: width 0.1s linear;
 }
@@ -276,6 +276,7 @@
    -------------------------------------------------------------------------- */
 
 @media ( max-width: 480px ) {
+
 	.vc-dropzone {
 		padding: 1.5em 1em;
 	}

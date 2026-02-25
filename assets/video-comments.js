@@ -11,9 +11,19 @@
  *
  * No build step required — plain vanilla JS (ES2017+ for async/await).
  * The global `vcSettings` object is injected via wp_localize_script().
+ *
+ * @typedef {Object} VcSettings
+ * @property {string}  restUrl        Base REST URL for the plugin namespace.
+ * @property {string}  nonce          Custom upload nonce.
+ * @property {string}  restNonce      WP REST nonce.
+ * @property {number}  maxSizeMb      Maximum allowed file size in MB.
+ * @property {boolean} hasCredentials Whether Mux credentials are configured.
+ * @property {boolean} allowGuests    Whether guests may upload.
+ * @property {boolean} isLoggedIn     Whether the current user is logged in.
+ * @property {Object}  i18n           Localised strings.
  */
 
-( function () {
+( function() {
 	'use strict';
 
 	/** @type {VcSettings} */
@@ -23,39 +33,38 @@
 	// -------------------------------------------------------------------------
 	// DOM refs (populated in init)
 	// -------------------------------------------------------------------------
-	let form               = null;
-	let fileInput          = null;
-	let dropzone           = null;
-	let dropzonePrimary    = null;
-	let dropzoneSecondary  = null;
-	let actionsEl          = null;
-	let uploadBtn          = null;
-	let clearBtn           = null;
-	let progressWrap       = null;
-	let progressBar        = null;
-	let progressPct        = null;
-	let statusEl           = null;
-	let playbackField      = null;
-	let assetIdField       = null;
-	let submitBtn          = null;
+	let form = null;
+	let fileInput = null;
+	let dropzone = null;
+	let dropzonePrimary = null;
+	let dropzoneSecondary = null;
+	let uploadBtn = null;
+	let clearBtn = null;
+	let progressWrap = null;
+	let progressBar = null;
+	let progressPct = null;
+	let statusEl = null;
+	let playbackField = null;
+	let assetIdField = null;
+	let submitBtn = null;
 
 	// Original dropzone text — stored during init so resetState can restore them.
-	let defaultPrimaryText   = '';
+	let defaultPrimaryText = '';
 	let defaultSecondaryText = '';
 
 	// -------------------------------------------------------------------------
 	// State
 	// -------------------------------------------------------------------------
 	const state = {
-		file: null,           // File object selected by user
-		uploading: false,     // XHR in flight
-		processing: false,    // Waiting for Mux asset to be ready
-		playbackId: '',       // Resolved playback ID
-		assetId: '',          // Mux asset ID (for deletion)
-		uploadId: '',         // Mux upload_id from WP REST
-		pollTimer: null,      // setInterval handle for status polling
-		dotTimer: null,       // setInterval handle for animated dots
-		xhr: null,            // Active XHR for cancel support
+		file: null, // File object selected by user
+		uploading: false, // XHR in flight
+		processing: false, // Waiting for Mux asset to be ready
+		playbackId: '', // Resolved playback ID
+		assetId: '', // Mux asset ID (for deletion)
+		uploadId: '', // Mux upload_id from WP REST
+		pollTimer: null, // setInterval handle for status polling
+		dotTimer: null, // setInterval handle for animated dots
+		xhr: null, // Active XHR for cancel support
 	};
 
 	// -------------------------------------------------------------------------
@@ -64,32 +73,39 @@
 
 	function init() {
 		form = document.getElementById( 'commentform' );
-		if ( ! form ) return;
+		if ( ! form ) {
+			return;
+		}
 
-		fileInput         = document.getElementById( 'vc-file-input' );
-		dropzone          = document.getElementById( 'vc-dropzone' );
-		dropzonePrimary   = document.getElementById( 'vc-dropzone-primary' );
+		fileInput = document.getElementById( 'vc-file-input' );
+		dropzone = document.getElementById( 'vc-dropzone' );
+		dropzonePrimary = document.getElementById( 'vc-dropzone-primary' );
 		dropzoneSecondary = document.getElementById( 'vc-dropzone-secondary' );
-		actionsEl         = document.getElementById( 'vc-actions' );
-		uploadBtn         = document.getElementById( 'vc-upload-btn' );
-		clearBtn          = document.getElementById( 'vc-clear-btn' );
-		progressWrap      = document.getElementById( 'vc-progress-wrap' );
-		progressBar       = document.getElementById( 'vc-progress' );
-		progressPct       = document.getElementById( 'vc-progress-pct' );
-		statusEl          = document.getElementById( 'vc-status' );
-		playbackField     = document.getElementById( 'vc-playback-id' );
-		assetIdField      = document.getElementById( 'vc-asset-id' );
+		uploadBtn = document.getElementById( 'vc-upload-btn' );
+		clearBtn = document.getElementById( 'vc-clear-btn' );
+		progressWrap = document.getElementById( 'vc-progress-wrap' );
+		progressBar = document.getElementById( 'vc-progress' );
+		progressPct = document.getElementById( 'vc-progress-pct' );
+		statusEl = document.getElementById( 'vc-status' );
+		playbackField = document.getElementById( 'vc-playback-id' );
+		assetIdField = document.getElementById( 'vc-asset-id' );
 
 		// Try inside the form first; block themes sometimes render the submit
 		// button outside <form>, so fall back to a document-wide search.
-		submitBtn = form.querySelector( 'input[type="submit"], button[type="submit"]' )
-			|| document.querySelector( '#submit, input[type="submit"], button[type="submit"]' );
+		submitBtn = form.querySelector( 'input[type="submit"], button[type="submit"]' ) ||
+			document.querySelector( '#submit, input[type="submit"], button[type="submit"]' );
 
-		if ( ! fileInput ) return; // Uploader section not rendered (no creds / guest disabled).
+		if ( ! fileInput ) {
+			return;
+		} // Uploader section not rendered (no creds / guest disabled).
 
 		// Store the default drop zone text so resetState can restore it.
-		if ( dropzonePrimary )   defaultPrimaryText   = dropzonePrimary.textContent.trim();
-		if ( dropzoneSecondary ) defaultSecondaryText = dropzoneSecondary.textContent.trim();
+		if ( dropzonePrimary ) {
+			defaultPrimaryText = dropzonePrimary.textContent.trim();
+		}
+		if ( dropzoneSecondary ) {
+			defaultSecondaryText = dropzoneSecondary.textContent.trim();
+		}
 
 		fileInput.addEventListener( 'change', onFileChange );
 		uploadBtn.addEventListener( 'click', onUploadClick );
@@ -98,18 +114,20 @@
 
 		// Drag-and-drop support on the drop zone.
 		if ( dropzone ) {
-			dropzone.addEventListener( 'dragover', function ( e ) {
+			dropzone.addEventListener( 'dragover', function( e ) {
 				e.preventDefault();
 				dropzone.classList.add( 'vc-dropzone--dragover' );
 			} );
-			dropzone.addEventListener( 'dragleave', function () {
+			dropzone.addEventListener( 'dragleave', function() {
 				dropzone.classList.remove( 'vc-dropzone--dragover' );
 			} );
-			dropzone.addEventListener( 'drop', function ( e ) {
+			dropzone.addEventListener( 'drop', function( e ) {
 				e.preventDefault();
 				dropzone.classList.remove( 'vc-dropzone--dragover' );
 				const file = e.dataTransfer && e.dataTransfer.files[ 0 ];
-				if ( file ) handleFileSelection( file );
+				if ( file ) {
+					handleFileSelection( file );
+				}
 			} );
 		}
 	}
@@ -120,7 +138,9 @@
 
 	function onFileChange() {
 		const file = fileInput.files[ 0 ] || null;
-		if ( ! file ) { resetState(); return; }
+		if ( ! file ) {
+			resetState(); return;
+		}
 		handleFileSelection( file );
 	}
 
@@ -146,20 +166,32 @@
 
 		// Update drop zone to reflect the selected file.
 		state.file = file;
-		if ( dropzone )          dropzone.classList.add( 'vc-dropzone--has-file' );
-		if ( dropzonePrimary )   dropzonePrimary.textContent   = file.name;
-		if ( dropzoneSecondary ) dropzoneSecondary.textContent = formatBytes( file.size );
+		if ( dropzone ) {
+			dropzone.classList.add( 'vc-dropzone--has-file' );
+		}
+		if ( dropzonePrimary ) {
+			dropzonePrimary.textContent = file.name;
+		}
+		if ( dropzoneSecondary ) {
+			dropzoneSecondary.textContent = formatBytes( file.size );
+		}
 
 		// Enable upload, reveal remove, block form submission until video is ready.
-		if ( uploadBtn ) uploadBtn.disabled = false;
-		if ( clearBtn )  clearBtn.hidden    = false;
+		if ( uploadBtn ) {
+			uploadBtn.disabled = false;
+		}
+		if ( clearBtn ) {
+			clearBtn.hidden = false;
+		}
 		lockForm( true );
 
 		setStatus( '' );
 	}
 
 	function onUploadClick() {
-		if ( ! state.file ) return;
+		if ( ! state.file ) {
+			return;
+		}
 		startUpload( state.file );
 	}
 
@@ -181,7 +213,7 @@
 				method: 'DELETE',
 				headers: { 'X-WP-Nonce': cfg.restNonce },
 				credentials: 'same-origin',
-			} ).catch( function () {} );
+			} ).catch( function() {} );
 		}
 
 		resetState();
@@ -214,7 +246,9 @@
 	async function startUpload( file ) {
 		lockForm( true );
 		state.uploading = true;
-		if ( uploadBtn ) uploadBtn.disabled = true;
+		if ( uploadBtn ) {
+			uploadBtn.disabled = true;
+		}
 		showProgress( true );
 		setStatus( i18n.uploading || 'Uploading…', 'info' );
 
@@ -233,15 +267,16 @@
 
 			// Step 3: poll for playback_id.
 			await pollForPlaybackId( state.uploadId );
-
 		} catch ( err ) {
-			state.uploading   = false;
-			state.processing  = false;
+			state.uploading = false;
+			state.processing = false;
 			showProgress( false );
 			stopProcessingAnimation();
 			lockForm( false );
 			// Re-enable upload so the user can retry.
-			if ( state.file && uploadBtn ) uploadBtn.disabled = false;
+			if ( state.file && uploadBtn ) {
+				uploadBtn.disabled = false;
+			}
 			setStatus( ( err && err.message ) || i18n.uploadError || 'Upload failed. Please try again.', 'error' );
 		}
 	}
@@ -250,7 +285,7 @@
 	 * Call WP REST to get a Mux direct-upload URL.
 	 *
 	 * @param {File} file
-	 * @returns {Promise<{upload_id: string, upload_url: string}>}
+	 * @return {Promise<{upload_id: string, upload_url: string}>} Resolves with upload ID and URL from Mux.
 	 */
 	async function requestDirectUploadUrl( file ) {
 		const body = new FormData();
@@ -278,12 +313,12 @@
 	 * PUT the raw video file to the Mux direct-upload URL.
 	 * Tracks progress via XHR so we can update the progress bar.
 	 *
-	 * @param {string} uploadUrl  Mux direct upload URL (pre-signed).
-	 * @param {File}   file       File to upload.
-	 * @returns {Promise<void>}
+	 * @param {string} uploadUrl Mux direct upload URL (pre-signed).
+	 * @param {File}   file      File to upload.
+	 * @return {Promise<void>}
 	 */
 	function uploadToMux( uploadUrl, file ) {
-		return new Promise( function ( resolve, reject ) {
+		return new Promise( function( resolve, reject ) {
 			const xhr = new XMLHttpRequest();
 			state.xhr = xhr;
 
@@ -291,14 +326,14 @@
 			// Mux direct upload expects the raw binary via PUT.
 			xhr.setRequestHeader( 'Content-Type', file.type || 'video/mp4' );
 
-			xhr.upload.addEventListener( 'progress', function ( e ) {
+			xhr.upload.addEventListener( 'progress', function( e ) {
 				if ( e.lengthComputable ) {
 					const pct = Math.round( ( e.loaded / e.total ) * 100 );
 					setProgress( pct );
 				}
 			} );
 
-			xhr.addEventListener( 'load', function () {
+			xhr.addEventListener( 'load', function() {
 				state.xhr = null;
 				if ( xhr.status >= 200 && xhr.status < 300 ) {
 					setProgress( 100 );
@@ -308,12 +343,12 @@
 				}
 			} );
 
-			xhr.addEventListener( 'error', function () {
+			xhr.addEventListener( 'error', function() {
 				state.xhr = null;
 				reject( new Error( i18n.uploadError || 'Upload failed.' ) );
 			} );
 
-			xhr.addEventListener( 'abort', function () {
+			xhr.addEventListener( 'abort', function() {
 				state.xhr = null;
 				reject( new Error( 'Upload cancelled.' ) );
 			} );
@@ -326,14 +361,14 @@
 	 * Poll WP REST GET /mux/upload-status until we get a playback_id.
 	 *
 	 * @param {string} uploadId
-	 * @returns {Promise<void>}
+	 * @return {Promise<void>}
 	 */
 	function pollForPlaybackId( uploadId ) {
-		return new Promise( function ( resolve, reject ) {
+		return new Promise( function( resolve, reject ) {
 			let attempts = 0;
 			const maxAttempts = 60; // 60 × 3 s = 3 min timeout.
 
-			state.pollTimer = setInterval( async function () {
+			state.pollTimer = setInterval( async function() {
 				attempts++;
 
 				if ( attempts > maxAttempts ) {
@@ -345,11 +380,11 @@
 				}
 
 				try {
-					const url  = new URL( cfg.restUrl + '/mux/upload-status' );
+					const url = new URL( cfg.restUrl + '/mux/upload-status' );
 					url.searchParams.set( 'upload_id', uploadId );
 					url.searchParams.set( 'nonce', cfg.nonce );
 
-					const res  = await fetch( url.toString(), {
+					const res = await fetch( url.toString(), {
 						credentials: 'same-origin',
 						headers: { 'X-WP-Nonce': cfg.restNonce },
 					} );
@@ -371,9 +406,11 @@
 						state.pollTimer = null;
 						state.processing = false;
 						state.playbackId = json.playback_id;
-						state.assetId    = json.asset_id || '';
+						state.assetId = json.asset_id || '';
 						playbackField.value = json.playback_id;
-						if ( assetIdField ) assetIdField.value = state.assetId;
+						if ( assetIdField ) {
+							assetIdField.value = state.assetId;
+						}
 						stopProcessingAnimation();
 						lockForm( false );
 						setStatus( i18n.ready || 'Video ready — looks good? Submit your comment below.', 'success' );
@@ -387,7 +424,6 @@
 						reject( new Error( i18n.uploadError || 'Video processing failed.' ) );
 					}
 					// 'waiting' | 'asset_created' → keep polling.
-
 				} catch ( err ) {
 					// Network error during poll — keep trying.
 				}
@@ -405,25 +441,41 @@
 	function resetState() {
 		clearInterval( state.pollTimer );
 		stopProcessingAnimation();
-		state.file        = null;
-		state.uploading   = false;
-		state.processing  = false;
-		state.playbackId  = '';
-		state.assetId     = '';
-		state.uploadId    = '';
-		state.pollTimer   = null;
-		state.xhr         = null;
+		state.file = null;
+		state.uploading = false;
+		state.processing = false;
+		state.playbackId = '';
+		state.assetId = '';
+		state.uploadId = '';
+		state.pollTimer = null;
+		state.xhr = null;
 
-		if ( fileInput )     fileInput.value = '';
-		if ( playbackField ) playbackField.value = '';
-		if ( assetIdField )  assetIdField.value  = '';
+		if ( fileInput ) {
+			fileInput.value = '';
+		}
+		if ( playbackField ) {
+			playbackField.value = '';
+		}
+		if ( assetIdField ) {
+			assetIdField.value = '';
+		}
 
 		// Reset drop zone and buttons.
-		if ( dropzone )          dropzone.classList.remove( 'vc-dropzone--has-file', 'vc-dropzone--dragover' );
-		if ( dropzonePrimary )   dropzonePrimary.textContent   = defaultPrimaryText;
-		if ( dropzoneSecondary ) dropzoneSecondary.textContent = defaultSecondaryText;
-		if ( uploadBtn )         uploadBtn.disabled = true;
-		if ( clearBtn )          clearBtn.hidden    = true;
+		if ( dropzone ) {
+			dropzone.classList.remove( 'vc-dropzone--has-file', 'vc-dropzone--dragover' );
+		}
+		if ( dropzonePrimary ) {
+			dropzonePrimary.textContent = defaultPrimaryText;
+		}
+		if ( dropzoneSecondary ) {
+			dropzoneSecondary.textContent = defaultSecondaryText;
+		}
+		if ( uploadBtn ) {
+			uploadBtn.disabled = true;
+		}
+		if ( clearBtn ) {
+			clearBtn.hidden = true;
+		}
 
 		removePreviewPlayer();
 		showProgress( false );
@@ -441,7 +493,7 @@
 		if ( submitBtn ) {
 			submitBtn.disabled = locked;
 			submitBtn.style.opacity = locked ? '0.4' : '';
-			submitBtn.style.cursor  = locked ? 'not-allowed' : '';
+			submitBtn.style.cursor = locked ? 'not-allowed' : '';
 		}
 	}
 
@@ -452,7 +504,7 @@
 	 */
 	function showProgress( visible ) {
 		if ( progressWrap ) {
-			progressWrap.style.display  = visible ? 'flex' : 'none';
+			progressWrap.style.display = visible ? 'flex' : 'none';
 			progressWrap.setAttribute( 'aria-hidden', String( ! visible ) );
 		}
 	}
@@ -463,18 +515,24 @@
 	 * @param {number} pct 0–100
 	 */
 	function setProgress( pct ) {
-		if ( progressBar ) progressBar.value = pct;
-		if ( progressPct ) progressPct.textContent = pct + '%';
+		if ( progressBar ) {
+			progressBar.value = pct;
+		}
+		if ( progressPct ) {
+			progressPct.textContent = pct + '%';
+		}
 	}
 
 	/**
 	 * Set the status message text and optional type class.
 	 *
-	 * @param {string} msg
+	 * @param {string}                      msg
 	 * @param {'info'|'success'|'error'|''} [type]
 	 */
 	function setStatus( msg, type ) {
-		if ( ! statusEl ) return;
+		if ( ! statusEl ) {
+			return;
+		}
 		statusEl.textContent = msg;
 		statusEl.className = 'vc-status' + ( type ? ' vc-status--' + type : '' );
 	}
@@ -490,7 +548,7 @@
 
 		setStatus( base + '  ' + frames[ 0 ], 'info' );
 
-		state.dotTimer = setInterval( function () {
+		state.dotTimer = setInterval( function() {
 			frame = ( frame + 1 ) % frames.length;
 			setStatus( base + '  ' + frames[ frame ], 'info' );
 		}, 120 );
@@ -511,7 +569,9 @@
 		removePreviewPlayer(); // Guard against duplicates.
 
 		const wrap = document.getElementById( 'vc-uploader' );
-		if ( ! wrap ) return;
+		if ( ! wrap ) {
+			return;
+		}
 
 		const preview = document.createElement( 'div' );
 		preview.id = 'vc-preview';
@@ -537,7 +597,7 @@
 	 * Format a byte count as a human-readable string (KB or MB).
 	 *
 	 * @param {number} bytes
-	 * @returns {string}
+	 * @return {string} Human-readable size string.
 	 */
 	function formatBytes( bytes ) {
 		if ( bytes < 1024 * 1024 ) {
@@ -555,5 +615,4 @@
 	} else {
 		init();
 	}
-
-} )();
+}() );
