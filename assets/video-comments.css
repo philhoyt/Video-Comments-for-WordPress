@@ -29,28 +29,91 @@
 }
 
 /* --------------------------------------------------------------------------
-   Controls row
+   Drop zone
    -------------------------------------------------------------------------- */
 
-.vc-uploader__controls {
+.vc-dropzone {
 	display: flex;
-	flex-wrap: wrap;
+	flex-direction: column;
 	align-items: center;
-	gap: 0.5em;
+	justify-content: center;
+	gap: 0.6em;
+	padding: 2em 1.5em;
+	border: 2px dashed currentColor;
+	border-radius: 8px;
+	opacity: 0.55;
+	cursor: pointer;
+	text-align: center;
+	transition: opacity 0.15s ease, background-color 0.15s ease;
+	user-select: none;
 }
 
+.vc-dropzone:hover,
+.vc-dropzone:focus-within {
+	opacity: 0.9;
+	background-color: rgba( 128, 128, 128, 0.06 );
+}
+
+/* File has been selected */
+.vc-dropzone--has-file {
+	opacity: 1;
+	border-style: solid;
+	background-color: rgba( 128, 128, 128, 0.04 );
+}
+
+/* Drag-over highlight */
+.vc-dropzone--dragover {
+	opacity: 1;
+	background-color: rgba( 128, 128, 128, 0.1 );
+}
+
+/* Hide the real file input — the label click triggers it */
 .vc-file-input {
-	/* Let browsers style the file picker natively */
-	flex: 1 1 auto;
-	min-width: 0;
+	display: none;
+}
+
+.vc-dropzone__icon {
+	display: block;
+	width: 2em;
+	height: 2em;
+	opacity: 0.6;
+	flex-shrink: 0;
+	transition: opacity 0.15s ease;
+}
+
+.vc-dropzone--has-file .vc-dropzone__icon {
+	opacity: 1;
+}
+
+.vc-dropzone__body {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2em;
+}
+
+.vc-dropzone__primary {
+	display: block;
+	font-weight: 600;
+	font-size: 0.95em;
+}
+
+.vc-dropzone__secondary {
+	display: block;
+	font-size: 0.8em;
+	opacity: 0.65;
 }
 
 /* --------------------------------------------------------------------------
-   Buttons — inherit the theme's own submit/element button styles.
-   We add wp-element-button in the PHP markup so block themes style
-   the upload button automatically. These rules provide sensible
-   fallbacks for classic themes and scope the layout-only properties.
+   Action buttons (Upload / Remove) — shown after file selection
    -------------------------------------------------------------------------- */
+
+.vc-uploader__actions {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.75em;
+	margin-top: 0.75em;
+}
 
 .vc-btn {
 	display: inline-flex;
@@ -66,8 +129,8 @@
 	pointer-events: none;
 }
 
-/* Upload button — styled by wp-element-button on block themes.
-   Classic-theme fallback mirrors a typical comment submit button. */
+/* Upload button — wp-element-button handles block themes automatically.
+   The :not() fallback covers classic themes. */
 .vc-btn--upload:not(.wp-element-button) {
 	padding: 0.5em 1.1em;
 	border: 1px solid transparent;
@@ -83,7 +146,7 @@
 	background-color: #444;
 }
 
-/* Remove/clear button — rendered as a small destructive text link */
+/* Remove — small text link, no chrome */
 .vc-btn--clear {
 	padding: 0;
 	border: none;
@@ -192,7 +255,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   Video player wrapper — default (unstyled) display
+   Video player wrapper — comment display
    -------------------------------------------------------------------------- */
 
 .video-comment {
@@ -213,9 +276,8 @@
    -------------------------------------------------------------------------- */
 
 @media ( max-width: 480px ) {
-	.vc-uploader__controls {
-		flex-direction: column;
-		align-items: stretch;
+	.vc-dropzone {
+		padding: 1.5em 1em;
 	}
 
 	.vc-preview,

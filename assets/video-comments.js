@@ -23,16 +23,24 @@
 	// -------------------------------------------------------------------------
 	// DOM refs (populated in init)
 	// -------------------------------------------------------------------------
-	let form          = null;
-	let fileInput     = null;
-	let uploadBtn     = null;
-	let clearBtn      = null;
-	let progressWrap  = null;
-	let progressBar   = null;
-	let progressPct   = null;
-	let statusEl      = null;
-	let playbackField = null;
-	let submitBtn     = null;
+	let form               = null;
+	let fileInput          = null;
+	let dropzone           = null;
+	let dropzonePrimary    = null;
+	let dropzoneSecondary  = null;
+	let actionsEl          = null;
+	let uploadBtn          = null;
+	let clearBtn           = null;
+	let progressWrap       = null;
+	let progressBar        = null;
+	let progressPct        = null;
+	let statusEl           = null;
+	let playbackField      = null;
+	let submitBtn          = null;
+
+	// Original dropzone text — stored during init so resetState can restore them.
+	let defaultPrimaryText   = '';
+	let defaultSecondaryText = '';
 
 	// -------------------------------------------------------------------------
 	// State
@@ -56,24 +64,48 @@
 		form = document.getElementById( 'commentform' );
 		if ( ! form ) return;
 
-		fileInput     = document.getElementById( 'vc-file-input' );
-		uploadBtn     = document.getElementById( 'vc-upload-btn' );
-		clearBtn      = document.getElementById( 'vc-clear-btn' );
-		progressWrap  = document.getElementById( 'vc-progress-wrap' );
-		progressBar   = document.getElementById( 'vc-progress' );
-		progressPct   = document.getElementById( 'vc-progress-pct' );
-		statusEl      = document.getElementById( 'vc-status' );
-		playbackField = document.getElementById( 'vc-playback-id' );
+		fileInput         = document.getElementById( 'vc-file-input' );
+		dropzone          = document.getElementById( 'vc-dropzone' );
+		dropzonePrimary   = document.getElementById( 'vc-dropzone-primary' );
+		dropzoneSecondary = document.getElementById( 'vc-dropzone-secondary' );
+		actionsEl         = document.getElementById( 'vc-actions' );
+		uploadBtn         = document.getElementById( 'vc-upload-btn' );
+		clearBtn          = document.getElementById( 'vc-clear-btn' );
+		progressWrap      = document.getElementById( 'vc-progress-wrap' );
+		progressBar       = document.getElementById( 'vc-progress' );
+		progressPct       = document.getElementById( 'vc-progress-pct' );
+		statusEl          = document.getElementById( 'vc-status' );
+		playbackField     = document.getElementById( 'vc-playback-id' );
 
-		// Find the form's submit button — covers <input type="submit"> and <button type="submit">.
 		submitBtn = form.querySelector( 'input[type="submit"], button[type="submit"]' );
 
 		if ( ! fileInput ) return; // Uploader section not rendered (no creds / guest disabled).
+
+		// Store the default drop zone text so resetState can restore it.
+		if ( dropzonePrimary )   defaultPrimaryText   = dropzonePrimary.textContent.trim();
+		if ( dropzoneSecondary ) defaultSecondaryText = dropzoneSecondary.textContent.trim();
 
 		fileInput.addEventListener( 'change', onFileChange );
 		uploadBtn.addEventListener( 'click', onUploadClick );
 		clearBtn.addEventListener( 'click', onClear );
 		form.addEventListener( 'submit', onFormSubmit );
+
+		// Drag-and-drop support on the drop zone.
+		if ( dropzone ) {
+			dropzone.addEventListener( 'dragover', function ( e ) {
+				e.preventDefault();
+				dropzone.classList.add( 'vc-dropzone--dragover' );
+			} );
+			dropzone.addEventListener( 'dragleave', function () {
+				dropzone.classList.remove( 'vc-dropzone--dragover' );
+			} );
+			dropzone.addEventListener( 'drop', function ( e ) {
+				e.preventDefault();
+				dropzone.classList.remove( 'vc-dropzone--dragover' );
+				const file = e.dataTransfer && e.dataTransfer.files[ 0 ];
+				if ( file ) handleFileSelection( file );
+			} );
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -82,18 +114,20 @@
 
 	function onFileChange() {
 		const file = fileInput.files[ 0 ] || null;
+		if ( ! file ) { resetState(); return; }
+		handleFileSelection( file );
+	}
 
-		if ( ! file ) {
-			resetState();
-			return;
-		}
-
-		// --- Client-side validation ---
-
+	/**
+	 * Validate and accept a file, updating the drop zone and showing the action row.
+	 * Called by both onFileChange (picker) and the drop handler.
+	 *
+	 * @param {File} file
+	 */
+	function handleFileSelection( file ) {
 		// Type check.
 		if ( ! file.type.startsWith( 'video/' ) ) {
 			setStatus( i18n.invalidType || 'Please select a video file.', 'error' );
-			fileInput.value = '';
 			return;
 		}
 
@@ -101,14 +135,19 @@
 		const maxBytes = ( cfg.maxSizeMb || 50 ) * 1024 * 1024;
 		if ( file.size > maxBytes ) {
 			setStatus( i18n.fileTooLarge || 'File is too large.', 'error' );
-			fileInput.value = '';
 			return;
 		}
 
-		// Valid selection — enable upload button.
+		// Update drop zone to reflect the selected file.
 		state.file = file;
-		uploadBtn.disabled = false;
-		clearBtn.style.display = 'inline-block';
+		if ( dropzone )          dropzone.classList.add( 'vc-dropzone--has-file' );
+		if ( dropzonePrimary )   dropzonePrimary.textContent   = file.name;
+		if ( dropzoneSecondary ) dropzoneSecondary.textContent = formatBytes( file.size );
+
+		// Enable upload, reveal remove.
+		if ( uploadBtn ) uploadBtn.disabled = false;
+		if ( clearBtn )  clearBtn.hidden    = false;
+
 		setStatus( '' );
 	}
 
@@ -152,7 +191,7 @@
 	async function startUpload( file ) {
 		lockForm( true );
 		state.uploading = true;
-		uploadBtn.disabled = true;
+		if ( uploadBtn ) uploadBtn.disabled = true;
 		showProgress( true );
 		setStatus( i18n.uploading || 'Uploading…', 'info' );
 
@@ -178,6 +217,8 @@
 			showProgress( false );
 			stopProcessingAnimation();
 			lockForm( false );
+			// Re-enable upload so the user can retry.
+			if ( state.file && uploadBtn ) uploadBtn.disabled = false;
 			setStatus( ( err && err.message ) || i18n.uploadError || 'Upload failed. Please try again.', 'error' );
 		}
 	}
@@ -349,8 +390,13 @@
 
 		if ( fileInput )     fileInput.value = '';
 		if ( playbackField ) playbackField.value = '';
-		if ( uploadBtn )     uploadBtn.disabled = true;
-		if ( clearBtn )      clearBtn.style.display = 'none';
+
+		// Reset drop zone and buttons.
+		if ( dropzone )          dropzone.classList.remove( 'vc-dropzone--has-file', 'vc-dropzone--dragover' );
+		if ( dropzonePrimary )   dropzonePrimary.textContent   = defaultPrimaryText;
+		if ( dropzoneSecondary ) dropzoneSecondary.textContent = defaultSecondaryText;
+		if ( uploadBtn )         uploadBtn.disabled = true;
+		if ( clearBtn )          clearBtn.hidden    = true;
 
 		removePreviewPlayer();
 		showProgress( false );
@@ -454,6 +500,19 @@
 		if ( existing ) {
 			existing.parentNode.removeChild( existing );
 		}
+	}
+
+	/**
+	 * Format a byte count as a human-readable string (KB or MB).
+	 *
+	 * @param {number} bytes
+	 * @returns {string}
+	 */
+	function formatBytes( bytes ) {
+		if ( bytes < 1024 * 1024 ) {
+			return ( bytes / 1024 ).toFixed( 1 ) + ' KB';
+		}
+		return ( bytes / ( 1024 * 1024 ) ).toFixed( 1 ) + ' MB';
 	}
 
 	// -------------------------------------------------------------------------

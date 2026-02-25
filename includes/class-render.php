@@ -152,7 +152,7 @@ class Video_Comments_Render {
 		?>
 		<div id="vc-uploader" class="vc-uploader" style="margin-top:1em;">
 			<p class="vc-label">
-				<strong><?php esc_html_e( 'Video (optional)', 'video-comments' ); ?></strong>
+				<strong><?php esc_html_e( 'Upload a video', 'video-comments' ); ?></strong>
 			</p>
 
 			<?php if ( ! $has_creds ) : ?>
@@ -164,14 +164,35 @@ class Video_Comments_Render {
 					<?php esc_html_e( 'Please log in to attach a video to your comment.', 'video-comments' ); ?>
 				</p>
 			<?php else : ?>
-				<div class="vc-uploader__controls">
+				<label class="vc-dropzone" id="vc-dropzone">
 					<input
 						type="file"
 						id="vc-file-input"
 						class="vc-file-input"
 						accept="video/*"
-						aria-label="<?php esc_attr_e( 'Select a video file', 'video-comments' ); ?>"
 					/>
+					<span class="vc-dropzone__icon" aria-hidden="true">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+						</svg>
+					</span>
+					<span class="vc-dropzone__body">
+						<span class="vc-dropzone__primary" id="vc-dropzone-primary">
+							<?php esc_html_e( 'Choose a video or drag it here', 'video-comments' ); ?>
+						</span>
+						<span class="vc-dropzone__secondary" id="vc-dropzone-secondary">
+							<?php
+							printf(
+								/* translators: %s: max file size in MB */
+								esc_html__( 'MP4, MOV, WebM, MKV &middot; max %s MB', 'video-comments' ),
+								esc_html( (string) Video_Comments_Settings::max_size_mb() )
+							);
+							?>
+						</span>
+					</span>
+				</label>
+
+				<div class="vc-uploader__actions" id="vc-actions">
 					<button
 						type="button"
 						id="vc-upload-btn"
@@ -184,8 +205,7 @@ class Video_Comments_Render {
 						type="button"
 						id="vc-clear-btn"
 						class="vc-btn vc-btn--clear"
-						style="display:none"
-						aria-label="<?php esc_attr_e( 'Remove video', 'video-comments' ); ?>"
+						hidden
 					>
 						<?php esc_html_e( 'Remove', 'video-comments' ); ?>
 					</button>
