@@ -13,7 +13,8 @@
     "lint:js": "eslint assets/",
     "lint:css": "stylelint \"assets/*.css\"",
     "lint": "npm run lint:js && npm run lint:css",
-    "plugin-zip": "wp-scripts plugin-zip"
+    "plugin-zip": "wp-scripts plugin-zip",
+    "make-pot": "wp i18n make-pot . languages/video-comments.pot --domain=video-comments --exclude=vendor,node_modules"
   },
   "repository": {
     "type": "git",
