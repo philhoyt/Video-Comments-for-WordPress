@@ -48,6 +48,11 @@ class Video_Comments_Comment_Meta {
 
 		// Allow the playback_id field through WP comment data sanitization.
 		add_filter( 'preprocess_comment', [ $this, 'capture_playback_id_before_sanitize' ] );
+
+		// Admin comment edit page.
+		add_action( 'add_meta_boxes_comment', [ $this, 'add_comment_meta_box' ] );
+		add_action( 'edit_comment', [ $this, 'save_admin_comment_meta' ] );
+		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -120,6 +125,124 @@ class Video_Comments_Comment_Meta {
 
 		add_comment_meta( $comment_id, self::META_PROVIDER, 'mux', true );
 		add_comment_meta( $comment_id, self::META_PLAYBACK_ID, $playback_id, true );
+	}
+
+	// -------------------------------------------------------------------------
+	// Admin comment edit page
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Enqueue the Mux player on the comment edit screen so the preview works.
+	 *
+	 * @param string $hook Current admin page hook.
+	 */
+	public function enqueue_admin_assets( string $hook ): void {
+		if ( 'comment.php' !== $hook ) {
+			return;
+		}
+
+		/** This filter is documented in class-render.php */
+		$src = apply_filters( 'video_comments_mux_player_src', 'https://cdn.jsdelivr.net/npm/@mux/mux-player' );
+		if ( $src ) {
+			wp_enqueue_script( 'mux-player', esc_url( $src ), [], null, true ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
+		}
+	}
+
+	/**
+	 * Register the meta box on the comment edit screen.
+	 *
+	 * @param WP_Comment $comment The comment being edited.
+	 */
+	public function add_comment_meta_box( WP_Comment $comment ): void {
+		add_meta_box(
+			'video-comments-meta',
+			__( 'Video Comment', 'video-comments' ),
+			[ $this, 'render_comment_meta_box' ],
+			'comment',
+			'normal'
+		);
+	}
+
+	/**
+	 * Render the meta box content.
+	 *
+	 * @param WP_Comment $comment The comment being edited.
+	 */
+	public function render_comment_meta_box( WP_Comment $comment ): void {
+		$playback_id = self::get_playback_id( (int) $comment->comment_ID );
+
+		wp_nonce_field( 'vc_edit_comment_' . $comment->comment_ID, 'vc_edit_nonce' );
+		?>
+		<table class="form-table editcomment" style="margin-top:0;">
+			<tbody>
+				<tr>
+					<td class="first"><label for="vc-admin-playback-id"><?php esc_html_e( 'Mux Playback ID', 'video-comments' ); ?></label></td>
+					<td>
+						<input
+							type="text"
+							id="vc-admin-playback-id"
+							name="vc_playback_id"
+							value="<?php echo esc_attr( $playback_id ); ?>"
+							class="large-text"
+							placeholder="<?php esc_attr_e( 'Leave blank to remove the video', 'video-comments' ); ?>"
+						/>
+					</td>
+				</tr>
+
+				<?php if ( $playback_id ) : ?>
+				<tr>
+					<td class="first"></td>
+					<td>
+						<div style="margin-top:0.5em;max-width:480px;">
+							<mux-player
+								playback-id="<?php echo esc_attr( $playback_id ); ?>"
+								controls
+								playsinline
+								style="display:block;width:100%;"
+							></mux-player>
+						</div>
+					</td>
+				</tr>
+				<?php endif; ?>
+			</tbody>
+		</table>
+		<?php
+	}
+
+	/**
+	 * Save the playback ID when an admin edits a comment.
+	 *
+	 * @param int $comment_id Comment ID.
+	 */
+	public function save_admin_comment_meta( int $comment_id ): void {
+		if ( ! isset( $_POST['vc_edit_nonce'] ) ) {
+			return;
+		}
+
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['vc_edit_nonce'] ) ), 'vc_edit_comment_' . $comment_id ) ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_comment', $comment_id ) ) {
+			return;
+		}
+
+		$playback_id = isset( $_POST['vc_playback_id'] )
+			? sanitize_text_field( wp_unslash( $_POST['vc_playback_id'] ) )
+			: '';
+
+		if ( '' === $playback_id ) {
+			delete_comment_meta( $comment_id, self::META_PLAYBACK_ID );
+			delete_comment_meta( $comment_id, self::META_PROVIDER );
+			return;
+		}
+
+		if ( ! preg_match( '/^[A-Za-z0-9\-]+$/', $playback_id ) ) {
+			return;
+		}
+
+		update_comment_meta( $comment_id, self::META_PLAYBACK_ID, $playback_id );
+		update_comment_meta( $comment_id, self::META_PROVIDER, 'mux' );
 	}
 
 	// -------------------------------------------------------------------------
