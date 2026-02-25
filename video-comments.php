@@ -1,13 +1,13 @@
 <?php
 /**
  * Plugin Name:       Video Comments
- * Plugin URI:        https://github.com/your-org/video-comments
+ * Plugin URI:        https://github.com/philhoyt/Video-Comments-for-WordPress
  * Description:       Extends WordPress comments to support uploading and displaying a video per comment via Mux.
  * Version:           1.0.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
- * Author:            Your Name
- * Author URI:        https://example.com
+ * Author:            philhoyt
+ * Author URI:        https://philhoyt.com/
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       video-comments

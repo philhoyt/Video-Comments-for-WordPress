@@ -2,10 +2,18 @@
   "name": "video-comments",
   "version": "1.0.0",
   "description": "Let commenters attach a short video to their comment. Videos upload directly to [Mux](https://www.mux.com/) — WordPress never touches the file, just stores an ID and renders a player.",
+  "files": [
+    "assets",
+    "includes",
+    "languages",
+    "README.md",
+    "video-comments.php"
+  ],
   "scripts": {
     "lint:js": "eslint assets/",
     "lint:css": "stylelint \"assets/*.css\"",
-    "lint": "npm run lint:js && npm run lint:css"
+    "lint": "npm run lint:js && npm run lint:css",
+    "plugin-zip": "wp-scripts plugin-zip"
   },
   "repository": {
     "type": "git",
@@ -20,6 +28,7 @@
   "homepage": "https://github.com/philhoyt/Video-Comments-for-WordPress#readme",
   "devDependencies": {
     "@wordpress/eslint-plugin": "^24.2.0",
+    "@wordpress/scripts": "^31.5.0",
     "@wordpress/stylelint-config": "^23.32.0",
     "eslint": "^8.57.1",
     "stylelint": "^16.26.1"

@@ -1,0 +1,14 @@
+.claude
+.distignore
+.eslintrc.json
+.git
+.gitignore
+.stylelintrc.json
+bin
+composer.json
+composer.lock
+node_modules
+package.json
+package-lock.json
+phpcs.xml
+vendor
