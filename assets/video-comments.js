@@ -77,7 +77,10 @@
 		statusEl          = document.getElementById( 'vc-status' );
 		playbackField     = document.getElementById( 'vc-playback-id' );
 
-		submitBtn = form.querySelector( 'input[type="submit"], button[type="submit"]' );
+		// Try inside the form first; block themes sometimes render the submit
+		// button outside <form>, so fall back to a document-wide search.
+		submitBtn = form.querySelector( 'input[type="submit"], button[type="submit"]' )
+			|| document.querySelector( '#submit, input[type="submit"], button[type="submit"]' );
 
 		if ( ! fileInput ) return; // Uploader section not rendered (no creds / guest disabled).
 
@@ -144,9 +147,10 @@
 		if ( dropzonePrimary )   dropzonePrimary.textContent   = file.name;
 		if ( dropzoneSecondary ) dropzoneSecondary.textContent = formatBytes( file.size );
 
-		// Enable upload, reveal remove.
+		// Enable upload, reveal remove, block form submission until video is ready.
 		if ( uploadBtn ) uploadBtn.disabled = false;
 		if ( clearBtn )  clearBtn.hidden    = false;
+		lockForm( true );
 
 		setStatus( '' );
 	}
@@ -413,6 +417,8 @@
 	function lockForm( locked ) {
 		if ( submitBtn ) {
 			submitBtn.disabled = locked;
+			submitBtn.style.opacity = locked ? '0.4' : '';
+			submitBtn.style.cursor  = locked ? 'not-allowed' : '';
 		}
 	}
 
