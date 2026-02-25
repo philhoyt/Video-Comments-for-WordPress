@@ -1,6 +1,7 @@
 # Video Comments
 
-Let commenters attach a short video to their comment. Videos upload directly to [Mux](https://www.mux.com/) — WordPress never touches the file, just stores an ID and renders a player.
+Let commenters attach a short video to their comment.
+Videos upload directly to [Mux](https://www.mux.com/).
 
 ## Requirements
 
