@@ -36,6 +36,7 @@
 	let progressPct        = null;
 	let statusEl           = null;
 	let playbackField      = null;
+	let assetIdField       = null;
 	let submitBtn          = null;
 
 	// Original dropzone text — stored during init so resetState can restore them.
@@ -50,6 +51,7 @@
 		uploading: false,     // XHR in flight
 		processing: false,    // Waiting for Mux asset to be ready
 		playbackId: '',       // Resolved playback ID
+		assetId: '',          // Mux asset ID (for deletion)
 		uploadId: '',         // Mux upload_id from WP REST
 		pollTimer: null,      // setInterval handle for status polling
 		dotTimer: null,       // setInterval handle for animated dots
@@ -76,6 +78,7 @@
 		progressPct       = document.getElementById( 'vc-progress-pct' );
 		statusEl          = document.getElementById( 'vc-status' );
 		playbackField     = document.getElementById( 'vc-playback-id' );
+		assetIdField      = document.getElementById( 'vc-asset-id' );
 
 		// Try inside the form first; block themes sometimes render the submit
 		// button outside <form>, so fall back to a document-wide search.
@@ -165,6 +168,22 @@
 			state.xhr.abort();
 		}
 		clearInterval( state.pollTimer );
+
+		// Delete the uploaded asset from Mux (best-effort, fire-and-forget).
+		if ( state.uploadId || state.assetId ) {
+			const params = new URLSearchParams( { nonce: cfg.nonce } );
+			if ( state.assetId ) {
+				params.set( 'asset_id', state.assetId );
+			} else {
+				params.set( 'upload_id', state.uploadId );
+			}
+			fetch( cfg.restUrl + '/mux/video?' + params.toString(), {
+				method: 'DELETE',
+				headers: { 'X-WP-Nonce': cfg.restNonce },
+				credentials: 'same-origin',
+			} ).catch( function () {} );
+		}
+
 		resetState();
 	}
 
@@ -352,7 +371,9 @@
 						state.pollTimer = null;
 						state.processing = false;
 						state.playbackId = json.playback_id;
+						state.assetId    = json.asset_id || '';
 						playbackField.value = json.playback_id;
+						if ( assetIdField ) assetIdField.value = state.assetId;
 						stopProcessingAnimation();
 						lockForm( false );
 						setStatus( i18n.ready || 'Video ready — looks good? Submit your comment below.', 'success' );
@@ -388,12 +409,14 @@
 		state.uploading   = false;
 		state.processing  = false;
 		state.playbackId  = '';
+		state.assetId     = '';
 		state.uploadId    = '';
 		state.pollTimer   = null;
 		state.xhr         = null;
 
 		if ( fileInput )     fileInput.value = '';
 		if ( playbackField ) playbackField.value = '';
+		if ( assetIdField )  assetIdField.value  = '';
 
 		// Reset drop zone and buttons.
 		if ( dropzone )          dropzone.classList.remove( 'vc-dropzone--has-file', 'vc-dropzone--dragover' );

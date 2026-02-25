@@ -39,4 +39,12 @@ interface Video_Comments_Provider {
 	 * }
 	 */
 	public function get_upload_status( string $upload_id );
+
+	/**
+	 * Permanently delete an asset from the provider.
+	 *
+	 * @param string $asset_id The provider-specific asset identifier.
+	 * @return true|WP_Error True on success.
+	 */
+	public function delete_asset( string $asset_id );
 }

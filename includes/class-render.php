@@ -229,6 +229,12 @@ class Video_Comments_Render {
 				name="<?php echo esc_attr( Video_Comments_Comment_Meta::FORM_FIELD ); ?>"
 				value=""
 			/>
+			<input
+				type="hidden"
+				id="vc-asset-id"
+				name="<?php echo esc_attr( Video_Comments_Comment_Meta::FORM_FIELD_ASSET ); ?>"
+				value=""
+			/>
 		</div>
 		<?php
 	}

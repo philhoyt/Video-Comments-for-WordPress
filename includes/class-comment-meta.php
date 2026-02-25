@@ -24,8 +24,11 @@ class Video_Comments_Comment_Meta {
 	/** Comment meta key — Mux asset ID. */
 	public const META_ASSET_ID = 'video_comments_mux_asset_id';
 
-	/** Hidden input name posted with the comment form. */
+	/** Hidden input name posted with the comment form — playback ID. */
 	public const FORM_FIELD = 'video_comments_mux_playback_id';
+
+	/** Hidden input name posted with the comment form — asset ID. */
+	public const FORM_FIELD_ASSET = 'video_comments_mux_asset_id_field';
 
 	/** Nonce action for playback_id validation on comment submit. */
 	private const NONCE_ACTION = 'vc_comment_submit';
@@ -53,6 +56,9 @@ class Video_Comments_Comment_Meta {
 		add_action( 'add_meta_boxes_comment', [ $this, 'add_comment_meta_box' ] );
 		add_action( 'edit_comment', [ $this, 'save_admin_comment_meta' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
+
+		// Delete the Mux asset when a comment is permanently deleted.
+		add_action( 'delete_comment', [ $this, 'delete_mux_asset_for_comment' ], 10, 2 );
 	}
 
 	// -------------------------------------------------------------------------
@@ -77,8 +83,14 @@ class Video_Comments_Comment_Meta {
 			? sanitize_text_field( wp_unslash( $_POST[ self::FORM_FIELD ] ) )
 			: '';
 
-		// Store on the data array under a private key so it survives into the post hook.
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$asset_id = isset( $_POST[ self::FORM_FIELD_ASSET ] )
+			? sanitize_text_field( wp_unslash( $_POST[ self::FORM_FIELD_ASSET ] ) )
+			: '';
+
+		// Store on the data array under private keys so they survive into the post hook.
 		$comment_data['_vc_playback_id'] = $playback_id;
+		$comment_data['_vc_asset_id']    = $asset_id;
 
 		return $comment_data;
 	}
@@ -123,8 +135,13 @@ class Video_Comments_Comment_Meta {
 			return;
 		}
 
+		$asset_id = sanitize_text_field( $commentdata['_vc_asset_id'] ?? '' );
+
 		add_comment_meta( $comment_id, self::META_PROVIDER, 'mux', true );
 		add_comment_meta( $comment_id, self::META_PLAYBACK_ID, $playback_id, true );
+		if ( '' !== $asset_id && preg_match( '/^[A-Za-z0-9\-]+$/', $asset_id ) ) {
+			add_comment_meta( $comment_id, self::META_ASSET_ID, $asset_id, true );
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -232,8 +249,10 @@ class Video_Comments_Comment_Meta {
 			: '';
 
 		if ( '' === $playback_id ) {
+			$this->delete_mux_asset_for_comment( $comment_id );
 			delete_comment_meta( $comment_id, self::META_PLAYBACK_ID );
 			delete_comment_meta( $comment_id, self::META_PROVIDER );
+			delete_comment_meta( $comment_id, self::META_ASSET_ID );
 			return;
 		}
 
@@ -243,6 +262,35 @@ class Video_Comments_Comment_Meta {
 
 		update_comment_meta( $comment_id, self::META_PLAYBACK_ID, $playback_id );
 		update_comment_meta( $comment_id, self::META_PROVIDER, 'mux' );
+	}
+
+	// -------------------------------------------------------------------------
+	// Mux asset deletion
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Delete the Mux asset associated with a comment, if any.
+	 * Called when a comment is permanently deleted from WordPress, or when an
+	 * admin clears the video from the comment edit screen.
+	 *
+	 * @param int $comment_id Comment ID.
+	 */
+	public function delete_mux_asset_for_comment( int $comment_id ): void {
+		if ( ! Video_Comments_Settings::has_mux_credentials() ) {
+			return;
+		}
+
+		$asset_id = get_comment_meta( $comment_id, self::META_ASSET_ID, true );
+		if ( empty( $asset_id ) || ! is_string( $asset_id ) ) {
+			return;
+		}
+
+		$provider = new Video_Comments_Provider_Mux(
+			Video_Comments_Settings::get_mux_token_id(),
+			Video_Comments_Settings::get_mux_token_secret()
+		);
+
+		$provider->delete_asset( $asset_id );
 	}
 
 	// -------------------------------------------------------------------------

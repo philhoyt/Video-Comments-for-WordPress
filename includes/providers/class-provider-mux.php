@@ -142,6 +142,31 @@ class Video_Comments_Provider_Mux implements Video_Comments_Provider {
 		return $result;
 	}
 
+	/**
+	 * {@inheritdoc}
+	 *
+	 * Deletes a Mux asset:
+	 * DELETE https://api.mux.com/video/v1/assets/{ASSET_ID}
+	 */
+	public function delete_asset( string $asset_id ) {
+		$asset_id = sanitize_text_field( $asset_id );
+
+		if ( empty( $asset_id ) ) {
+			return new WP_Error( 'vc_invalid_asset_id', __( 'Invalid asset ID.', 'video-comments' ) );
+		}
+
+		$result = $this->request(
+			'DELETE',
+			self::API_BASE . '/assets/' . rawurlencode( $asset_id )
+		);
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return true;
+	}
+
 	// -------------------------------------------------------------------------
 	// Private helpers
 	// -------------------------------------------------------------------------
@@ -222,9 +247,13 @@ class Video_Comments_Provider_Mux implements Video_Comments_Provider {
 			$args['body'] = $body;
 		}
 
-		$response = 'GET' === $method
-			? wp_remote_get( $url, $args )
-			: wp_remote_post( $url, $args );
+		if ( 'GET' === $method ) {
+			$response = wp_remote_get( $url, $args );
+		} elseif ( 'POST' === $method ) {
+			$response = wp_remote_post( $url, $args );
+		} else {
+			$response = wp_remote_request( $url, $args );
+		}
 
 		if ( is_wp_error( $response ) ) {
 			return $response;
@@ -232,6 +261,12 @@ class Video_Comments_Provider_Mux implements Video_Comments_Provider {
 
 		$code = wp_remote_retrieve_response_code( $response );
 		$raw  = wp_remote_retrieve_body( $response );
+
+		// Mux DELETE endpoints return 204 No Content on success.
+		if ( 204 === $code ) {
+			return [];
+		}
+
 		$json = json_decode( $raw, true );
 
 		if ( $code < 200 || $code >= 300 ) {

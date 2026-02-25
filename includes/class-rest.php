@@ -67,6 +67,32 @@ class Video_Comments_REST {
 			]
 		);
 
+		// DELETE /video-comments/v1/mux/video — delete an asset from Mux.
+		register_rest_route(
+			self::NAMESPACE,
+			'/mux/video',
+			[
+				'methods'             => WP_REST_Server::DELETABLE,
+				'callback'            => [ $this, 'handle_delete_video' ],
+				'permission_callback' => [ $this, 'check_upload_permission' ],
+				'args'                => [
+					'asset_id' => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'upload_id' => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'nonce' => [
+						'type'              => 'string',
+						'required'          => true,
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+				],
+			]
+		);
+
 		// GET /video-comments/v1/mux/upload-status.
 		register_rest_route(
 			self::NAMESPACE,
@@ -247,7 +273,50 @@ class Video_Comments_REST {
 			unset( $result['playback_id'] );
 		}
 
+		// Always include asset_id so the client can use it for deletion.
 		return rest_ensure_response( $result );
+	}
+
+	/**
+	 * DELETE /mux/video — delete a Mux asset by asset_id or upload_id.
+	 *
+	 * @param WP_REST_Request $request Incoming request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function handle_delete_video( WP_REST_Request $request ) {
+		if ( ! Video_Comments_Settings::has_mux_credentials() ) {
+			return new WP_Error(
+				'vc_no_credentials',
+				__( 'Mux API credentials are not configured.', 'video-comments' ),
+				[ 'status' => 503 ]
+			);
+		}
+
+		$asset_id  = (string) $request->get_param( 'asset_id' );
+		$upload_id = (string) $request->get_param( 'upload_id' );
+		$provider  = $this->get_provider();
+
+		// Resolve asset_id from upload_id if needed.
+		if ( empty( $asset_id ) && ! empty( $upload_id ) ) {
+			$status = $provider->get_upload_status( $upload_id );
+			if ( is_wp_error( $status ) ) {
+				return $status;
+			}
+			$asset_id = $status['asset_id'] ?? '';
+		}
+
+		if ( empty( $asset_id ) ) {
+			// Nothing to delete (upload may not have an asset yet).
+			return rest_ensure_response( [ 'deleted' => false ] );
+		}
+
+		$result = $provider->delete_asset( $asset_id );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return rest_ensure_response( [ 'deleted' => true ] );
 	}
 
 	// -------------------------------------------------------------------------
