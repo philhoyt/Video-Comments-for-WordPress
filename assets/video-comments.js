@@ -37,10 +37,14 @@
 	let statusEl           = null;
 	let playbackField      = null;
 	let submitBtn          = null;
+	let commentTextarea    = null;
 
 	// Original dropzone text — stored during init so resetState can restore them.
 	let defaultPrimaryText   = '';
 	let defaultSecondaryText = '';
+
+	// Whether the comment textarea originally had the required attribute.
+	let origRequired = false;
 
 	// -------------------------------------------------------------------------
 	// State
@@ -77,7 +81,11 @@
 		statusEl          = document.getElementById( 'vc-status' );
 		playbackField     = document.getElementById( 'vc-playback-id' );
 
-		submitBtn = form.querySelector( 'input[type="submit"], button[type="submit"]' );
+		submitBtn       = form.querySelector( 'input[type="submit"], button[type="submit"]' );
+		commentTextarea = form.querySelector( 'textarea[name="comment"]' );
+		if ( commentTextarea ) {
+			origRequired = commentTextarea.hasAttribute( 'required' );
+		}
 
 		if ( ! fileInput ) return; // Uploader section not rendered (no creds / guest disabled).
 
@@ -166,6 +174,9 @@
 
 	/**
 	 * Prevent form submission while an upload or processing step is pending.
+	 * When a video is ready but no comment text was typed, inject a non-breaking
+	 * space so WordPress's empty-content check is bypassed; the server will strip
+	 * it before saving to the database.
 	 *
 	 * @param {SubmitEvent} e
 	 */
@@ -173,6 +184,11 @@
 		if ( state.uploading || state.processing ) {
 			e.preventDefault();
 			setStatus( i18n.uploading || 'Upload in progress — please wait.', 'info' );
+			return;
+		}
+
+		if ( state.playbackId && commentTextarea && ! commentTextarea.value.trim() ) {
+			commentTextarea.value = '\u00a0'; // Stripped server-side by preprocess_comment.
 		}
 	}
 
@@ -351,6 +367,8 @@
 						playbackField.value = json.playback_id;
 						stopProcessingAnimation();
 						lockForm( false );
+						// Comment text is now optional — remove the required constraint.
+						if ( commentTextarea ) commentTextarea.removeAttribute( 'required' );
 						setStatus( i18n.ready || 'Video ready — looks good? Submit your comment below.', 'success' );
 						showPreviewPlayer( json.playback_id );
 						resolve();
@@ -390,6 +408,17 @@
 
 		if ( fileInput )     fileInput.value = '';
 		if ( playbackField ) playbackField.value = '';
+
+		// Restore the required constraint on the textarea if it had one originally.
+		if ( commentTextarea ) {
+			if ( origRequired ) {
+				commentTextarea.setAttribute( 'required', 'required' );
+			}
+			// Clear any placeholder value injected during form submission.
+			if ( commentTextarea.value === '\u00a0' ) {
+				commentTextarea.value = '';
+			}
+		}
 
 		// Reset drop zone and buttons.
 		if ( dropzone )          dropzone.classList.remove( 'vc-dropzone--has-file', 'vc-dropzone--dragover' );
