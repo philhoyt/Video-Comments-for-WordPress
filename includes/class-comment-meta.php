@@ -9,10 +9,16 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Hooks into the comment lifecycle to persist and expose video metadata.
+ *
+ * @package Video_Comments
  */
 class Video_Comments_Comment_Meta {
 
-	/** @var Video_Comments_Comment_Meta|null */
+	/**
+	 * Singleton instance.
+	 *
+	 * @var Video_Comments_Comment_Meta|null
+	 */
 	private static ?Video_Comments_Comment_Meta $instance = null;
 
 	/** Comment meta key — video provider name. */
@@ -36,6 +42,7 @@ class Video_Comments_Comment_Meta {
 	/** Nonce field name. */
 	public const NONCE_FIELD = 'vc_comment_nonce';
 
+	/** Singleton accessor. */
 	public static function get_instance(): self {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -43,8 +50,10 @@ class Video_Comments_Comment_Meta {
 		return self::$instance;
 	}
 
+	/** Private constructor — use get_instance(). */
 	private function __construct() {}
 
+	/** Register hooks for saving and displaying comment video meta. */
 	public function init(): void {
 		// Save meta after comment is inserted.
 		add_action( 'comment_post', [ $this, 'save_comment_video_meta' ], 10, 3 );
@@ -78,15 +87,15 @@ class Video_Comments_Comment_Meta {
 			return $comment_data;
 		}
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in save_comment_video_meta.
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- nonce verified in save_comment_video_meta.
 		$playback_id = isset( $_POST[ self::FORM_FIELD ] )
 			? sanitize_text_field( wp_unslash( $_POST[ self::FORM_FIELD ] ) )
 			: '';
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$asset_id = isset( $_POST[ self::FORM_FIELD_ASSET ] )
 			? sanitize_text_field( wp_unslash( $_POST[ self::FORM_FIELD_ASSET ] ) )
 			: '';
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 
 		// Store on the data array under private keys so they survive into the post hook.
 		$comment_data['_vc_playback_id'] = $playback_id;
@@ -98,8 +107,8 @@ class Video_Comments_Comment_Meta {
 	/**
 	 * After comment is inserted, persist video meta if a valid playback_id was submitted.
 	 *
-	 * @param int             $comment_id  New comment ID.
-	 * @param int|string      $approved    Approval status (0|1|'spam').
+	 * @param int                 $comment_id  New comment ID.
+	 * @param int|string          $approved    Approval status (0|1|'spam').
 	 * @param array<string,mixed> $commentdata Full comment data array.
 	 */
 	public function save_comment_video_meta( int $comment_id, $approved, array $commentdata ): void {
@@ -170,7 +179,7 @@ class Video_Comments_Comment_Meta {
 	 *
 	 * @param WP_Comment $comment The comment being edited.
 	 */
-	public function add_comment_meta_box( WP_Comment $comment ): void {
+	public function add_comment_meta_box( WP_Comment $comment ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- required by add_meta_boxes_comment hook.
 		add_meta_box(
 			'video-comments-meta',
 			__( 'Video Comment', 'video-comments' ),

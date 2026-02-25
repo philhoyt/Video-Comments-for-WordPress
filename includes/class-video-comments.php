@@ -12,7 +12,11 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Video_Comments {
 
-	/** @var Video_Comments|null */
+	/**
+	 * Singleton instance.
+	 *
+	 * @var Video_Comments|null
+	 */
 	private static ?Video_Comments $instance = null;
 
 	/**

@@ -12,7 +12,11 @@ defined( 'ABSPATH' ) || exit;
  */
 class Video_Comments_REST {
 
-	/** @var Video_Comments_REST|null */
+	/**
+	 * Singleton instance.
+	 *
+	 * @var Video_Comments_REST|null
+	 */
 	private static ?Video_Comments_REST $instance = null;
 
 	/** REST namespace. */
@@ -27,6 +31,9 @@ class Video_Comments_REST {
 	/** Rate-limit window in seconds. */
 	private const RATE_LIMIT_WINDOW = 60;
 
+	/**
+	 * Singleton accessor.
+	 */
 	public static function get_instance(): self {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -34,12 +41,19 @@ class Video_Comments_REST {
 		return self::$instance;
 	}
 
+	/** Private constructor — use get_instance(). */
 	private function __construct() {}
 
+	/**
+	 * Register WordPress hooks.
+	 */
 	public function init(): void {
 		add_action( 'rest_api_init', [ $this, 'register_routes' ] );
 	}
 
+	/**
+	 * Register all REST routes for this plugin.
+	 */
 	public function register_routes(): void {
 		// POST /video-comments/v1/mux/direct-upload.
 		register_rest_route(
@@ -58,7 +72,7 @@ class Video_Comments_REST {
 						'type'              => 'integer',
 						'sanitize_callback' => 'absint',
 					],
-					'nonce' => [
+					'nonce'     => [
 						'type'              => 'string',
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_text_field',
@@ -76,7 +90,7 @@ class Video_Comments_REST {
 				'callback'            => [ $this, 'handle_delete_video' ],
 				'permission_callback' => [ $this, 'check_upload_permission' ],
 				'args'                => [
-					'asset_id' => [
+					'asset_id'  => [
 						'type'              => 'string',
 						'sanitize_callback' => 'sanitize_text_field',
 					],
@@ -84,7 +98,7 @@ class Video_Comments_REST {
 						'type'              => 'string',
 						'sanitize_callback' => 'sanitize_text_field',
 					],
-					'nonce' => [
+					'nonce'     => [
 						'type'              => 'string',
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_text_field',
@@ -107,7 +121,7 @@ class Video_Comments_REST {
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_text_field',
 					],
-					'nonce' => [
+					'nonce'     => [
 						'type'              => 'string',
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_text_field',

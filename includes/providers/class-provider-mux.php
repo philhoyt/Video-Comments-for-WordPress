@@ -17,10 +17,18 @@ class Video_Comments_Provider_Mux implements Video_Comments_Provider {
 	/** Mux API base URL. */
 	private const API_BASE = 'https://api.mux.com/video/v1';
 
-	/** @var string */
+	/**
+	 * Mux Token ID.
+	 *
+	 * @var string
+	 */
 	private string $token_id;
 
-	/** @var string */
+	/**
+	 * Mux Token Secret.
+	 *
+	 * @var string
+	 */
 	private string $token_secret;
 
 	/**
@@ -39,21 +47,23 @@ class Video_Comments_Provider_Mux implements Video_Comments_Provider {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * {@inheritdoc}
+	 * Creates a Mux direct upload.
 	 *
-	 * Creates a Mux direct upload:
 	 * POST https://api.mux.com/video/v1/uploads
+	 *
+	 * @param array<string,mixed> $args Optional arguments (e.g. cors_origin).
+	 * @return array<string,mixed>|WP_Error
 	 */
 	public function create_direct_upload( array $args = [] ) {
 		$cors_origin = $args['cors_origin'] ?? get_site_url();
 
 		$body = wp_json_encode(
 			[
-				'cors_origin'    => $cors_origin,
+				'cors_origin'        => $cors_origin,
 				'new_asset_settings' => [
 					'playback_policy' => [ 'public' ],
 				],
-				'timeout'        => 3600,
+				'timeout'            => 3600,
 			]
 		);
 
@@ -84,10 +94,12 @@ class Video_Comments_Provider_Mux implements Video_Comments_Provider {
 	}
 
 	/**
-	 * {@inheritdoc}
+	 * Fetches upload status.
 	 *
-	 * Fetches upload status:
 	 * GET https://api.mux.com/video/v1/uploads/{UPLOAD_ID}
+	 *
+	 * @param string $upload_id The upload_id returned by create_direct_upload().
+	 * @return array<string,mixed>|WP_Error
 	 */
 	public function get_upload_status( string $upload_id ) {
 		$upload_id = sanitize_text_field( $upload_id );
@@ -114,7 +126,7 @@ class Video_Comments_Provider_Mux implements Video_Comments_Provider {
 			);
 		}
 
-		$mux_status = $data['status'] ?? 'waiting'; // waiting | asset_created | errored | cancelled
+		$mux_status = $data['status'] ?? 'waiting'; // Possible values: waiting, asset_created, errored, cancelled.
 		$asset_id   = $data['asset_id'] ?? null;
 
 		// Map Mux status → our internal status.
@@ -134,8 +146,8 @@ class Video_Comments_Provider_Mux implements Video_Comments_Provider {
 		}
 
 		$result = [
-			'status'     => $status,
-			'asset_id'   => $asset_id ? sanitize_text_field( (string) $asset_id ) : null,
+			'status'      => $status,
+			'asset_id'    => $asset_id ? sanitize_text_field( (string) $asset_id ) : null,
 			'playback_id' => $playback_id ? sanitize_text_field( (string) $playback_id ) : null,
 		];
 
@@ -143,10 +155,12 @@ class Video_Comments_Provider_Mux implements Video_Comments_Provider {
 	}
 
 	/**
-	 * {@inheritdoc}
+	 * Permanently deletes a Mux asset.
 	 *
-	 * Deletes a Mux asset:
 	 * DELETE https://api.mux.com/video/v1/assets/{ASSET_ID}
+	 *
+	 * @param string $asset_id The Mux asset identifier.
+	 * @return true|WP_Error
 	 */
 	public function delete_asset( string $asset_id ) {
 		$asset_id = sanitize_text_field( $asset_id );
@@ -236,7 +250,7 @@ class Video_Comments_Provider_Mux implements Video_Comments_Provider {
 		$args = [
 			'method'  => $method,
 			'headers' => [
-				'Authorization' => 'Basic ' . base64_encode( $this->token_id . ':' . $this->token_secret ),
+				'Authorization' => 'Basic ' . base64_encode( $this->token_id . ':' . $this->token_secret ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Required for Mux Basic Auth.
 				'Content-Type'  => 'application/json',
 				'Accept'        => 'application/json',
 			],

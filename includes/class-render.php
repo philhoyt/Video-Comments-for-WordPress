@@ -9,10 +9,16 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Handles all front-end output for the plugin.
+ *
+ * @package Video_Comments
  */
 class Video_Comments_Render {
 
-	/** @var Video_Comments_Render|null */
+	/**
+	 * Singleton instance.
+	 *
+	 * @var Video_Comments_Render|null
+	 */
 	private static ?Video_Comments_Render $instance = null;
 
 	/**
@@ -21,6 +27,7 @@ class Video_Comments_Render {
 	 */
 	private const MUX_PLAYER_CDN = 'https://cdn.jsdelivr.net/npm/@mux/mux-player';
 
+	/** Singleton accessor. */
 	public static function get_instance(): self {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -28,8 +35,10 @@ class Video_Comments_Render {
 		return self::$instance;
 	}
 
+	/** Private constructor — use get_instance(). */
 	private function __construct() {}
 
+	/** Register hooks when the plugin is enabled. */
 	public function init(): void {
 		if ( ! Video_Comments_Settings::is_enabled() ) {
 			return;
@@ -50,6 +59,9 @@ class Video_Comments_Render {
 	// Assets
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Enqueue front-end assets on singular posts/pages that have comments open.
+	 */
 	public function enqueue_assets(): void {
 		if ( ! is_singular() || ! comments_open() ) {
 			return;
@@ -77,30 +89,30 @@ class Video_Comments_Render {
 			'video-comments',
 			'vcSettings',
 			[
-				'restUrl'         => esc_url_raw( rest_url( Video_Comments_REST::NAMESPACE ) ),
-				'nonce'           => wp_create_nonce( 'vc_upload_nonce' ),
-				'restNonce'       => wp_create_nonce( 'wp_rest' ),
-				'maxSizeMb'       => Video_Comments_Settings::max_size_mb(),
-				'hasCredentials'  => Video_Comments_Settings::has_mux_credentials(),
-				'allowGuests'     => Video_Comments_Settings::allow_guests(),
-				'isLoggedIn'      => is_user_logged_in(),
+				'restUrl'        => esc_url_raw( rest_url( Video_Comments_REST::NAMESPACE ) ),
+				'nonce'          => wp_create_nonce( 'vc_upload_nonce' ),
+				'restNonce'      => wp_create_nonce( 'wp_rest' ),
+				'maxSizeMb'      => Video_Comments_Settings::max_size_mb(),
+				'hasCredentials' => Video_Comments_Settings::has_mux_credentials(),
+				'allowGuests'    => Video_Comments_Settings::allow_guests(),
+				'isLoggedIn'     => is_user_logged_in(),
 				/* translators: %s: max size in MB */
-				'i18n'            => [
-					'selectVideo'     => __( 'Select video', 'video-comments' ),
-					'uploading'       => __( 'Uploading…', 'video-comments' ),
-					'uploadComplete'  => __( 'Upload complete', 'video-comments' ),
-					'uploadError'     => __( 'Upload failed. Please try again.', 'video-comments' ),
-					'processing'      => __( 'Processing video…', 'video-comments' ),
-					'ready'           => __( 'Video ready', 'video-comments' ),
-					'clearVideo'      => __( 'Remove video', 'video-comments' ),
-					'noCredentials'   => __( 'Video uploads are not available at this time.', 'video-comments' ),
-					'guestsDisabled'  => __( 'Please log in to attach a video.', 'video-comments' ),
-					'fileTooLarge'    => sprintf(
+				'i18n'           => [
+					'selectVideo'    => __( 'Select video', 'video-comments' ),
+					'uploading'      => __( 'Uploading…', 'video-comments' ),
+					'uploadComplete' => __( 'Upload complete', 'video-comments' ),
+					'uploadError'    => __( 'Upload failed. Please try again.', 'video-comments' ),
+					'processing'     => __( 'Processing video…', 'video-comments' ),
+					'ready'          => __( 'Video ready', 'video-comments' ),
+					'clearVideo'     => __( 'Remove video', 'video-comments' ),
+					'noCredentials'  => __( 'Video uploads are not available at this time.', 'video-comments' ),
+					'guestsDisabled' => __( 'Please log in to attach a video.', 'video-comments' ),
+					'fileTooLarge'   => sprintf(
 						/* translators: %s: max size in MB */
 						__( 'File is too large. Maximum size is %s MB.', 'video-comments' ),
 						Video_Comments_Settings::max_size_mb()
 					),
-					'invalidType'     => __( 'Please select a video file.', 'video-comments' ),
+					'invalidType'    => __( 'Please select a video file.', 'video-comments' ),
 				],
 			]
 		);
@@ -126,13 +138,8 @@ class Video_Comments_Render {
 			return;
 		}
 
-		wp_enqueue_script(
-			'mux-player',
-			esc_url( $src ),
-			[],
-			null, // CDN controls version.
-			true
-		);
+		// phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- CDN controls versioning.
+		wp_enqueue_script( 'mux-player', esc_url( $src ), [], null, true );
 	}
 
 	// -------------------------------------------------------------------------
@@ -221,7 +228,7 @@ class Video_Comments_Render {
 
 			<?php
 			// Hidden field that carries the playback_id with the comment form POST.
-			echo Video_Comments_Comment_Meta::nonce_field_html();
+			echo Video_Comments_Comment_Meta::nonce_field_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- nonce_field_html() returns pre-escaped HTML.
 			?>
 			<input
 				type="hidden"
@@ -300,8 +307,8 @@ class Video_Comments_Render {
 		?>
 		<div class="video-comment">
 			<mux-player
-				playback-id="<?php echo $playback_id; // Already escaped above. ?>"
-				<?php echo $attr_string; // Pre-escaped. ?>
+				playback-id="<?php echo $playback_id; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped above. ?>"
+				<?php echo $attr_string; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped above. ?>
 			></mux-player>
 		</div>
 		<?php
