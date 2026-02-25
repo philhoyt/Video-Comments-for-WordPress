@@ -66,10 +66,6 @@ add_filter( 'video_comments_player_attrs', function ( $attrs, $playback_id ) {
 }, 10, 2 );
 ```
 
-## Adding another video provider
-
-The plugin uses a `Video_Comments_Provider` interface so a second backend (e.g. Cloudflare Stream) can be dropped in without rewriting anything. Implement `create_direct_upload()` and `get_upload_status()` in a new class under `includes/providers/`.
-
 ## FAQ
 
 **Do videos need separate approval?**
