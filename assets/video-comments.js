@@ -455,14 +455,16 @@
 	 * something is happening during what can be a 10–30 second wait.
 	 */
 	function startProcessingAnimation() {
-		let dots = 0;
+		const frames = [ '-', '\\', '|', '/' ];
+		let frame = 0;
 		const base = i18n.processing || 'Processing video';
-		setStatus( base + '…', 'info' );
+
+		setStatus( base + '  ' + frames[ 0 ], 'info' );
 
 		state.dotTimer = setInterval( function () {
-			dots = ( dots + 1 ) % 4;
-			setStatus( base + '.'.repeat( dots || 1 ), 'info' );
-		}, 700 );
+			frame = ( frame + 1 ) % frames.length;
+			setStatus( base + '  ' + frames[ frame ], 'info' );
+		}, 120 );
 	}
 
 	function stopProcessingAnimation() {
