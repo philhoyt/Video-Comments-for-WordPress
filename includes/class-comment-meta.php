@@ -5,6 +5,8 @@
  * @package Video_Comments
  */
 
+declare(strict_types=1);
+
 defined( 'ABSPATH' ) || exit;
 
 /**

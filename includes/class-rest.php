@@ -5,6 +5,8 @@
  * @package Video_Comments
  */
 
+declare(strict_types=1);
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -96,6 +98,7 @@ class Video_Comments_REST {
 					],
 					'upload_id' => [
 						'type'              => 'string',
+						'required'          => true,
 						'sanitize_callback' => 'sanitize_text_field',
 					],
 					'nonce'     => [
@@ -247,6 +250,14 @@ class Video_Comments_REST {
 			return $result;
 		}
 
+		// Record that this nonce "owns" the upload so the DELETE endpoint can verify.
+		$nonce = (string) $request->get_param( 'nonce' );
+		set_transient(
+			'vc_del_' . sanitize_key( $result['upload_id'] ),
+			md5( $nonce ),
+			2 * HOUR_IN_SECONDS
+		);
+
 		return rest_ensure_response( $result );
 	}
 
@@ -306,12 +317,24 @@ class Video_Comments_REST {
 			);
 		}
 
-		$asset_id  = (string) $request->get_param( 'asset_id' );
 		$upload_id = (string) $request->get_param( 'upload_id' );
-		$provider  = $this->get_provider();
+		$asset_id  = (string) $request->get_param( 'asset_id' );
+		$nonce     = (string) $request->get_param( 'nonce' );
 
-		// Resolve asset_id from upload_id if needed.
-		if ( empty( $asset_id ) && ! empty( $upload_id ) ) {
+		// Verify ownership: the transient set during create_direct_upload must match this nonce.
+		$stored = get_transient( 'vc_del_' . sanitize_key( $upload_id ) );
+		if ( false === $stored || md5( $nonce ) !== $stored ) {
+			return new WP_Error(
+				'vc_not_owner',
+				__( 'You are not authorised to delete this upload.', 'video-comments' ),
+				[ 'status' => 403 ]
+			);
+		}
+
+		$provider = $this->get_provider();
+
+		// Resolve asset_id from Mux if the client didn't send it (upload still in progress).
+		if ( empty( $asset_id ) ) {
 			$status = $provider->get_upload_status( $upload_id );
 			if ( is_wp_error( $status ) ) {
 				return $status;
@@ -320,7 +343,8 @@ class Video_Comments_REST {
 		}
 
 		if ( empty( $asset_id ) ) {
-			// Nothing to delete (upload may not have an asset yet).
+			// Upload exists but no asset created yet — clean up the ownership transient.
+			delete_transient( 'vc_del_' . sanitize_key( $upload_id ) );
 			return rest_ensure_response( [ 'deleted' => false ] );
 		}
 
@@ -330,6 +354,7 @@ class Video_Comments_REST {
 			return $result;
 		}
 
+		delete_transient( 'vc_del_' . sanitize_key( $upload_id ) );
 		return rest_ensure_response( [ 'deleted' => true ] );
 	}
 

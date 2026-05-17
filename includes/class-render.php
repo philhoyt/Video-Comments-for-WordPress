@@ -5,6 +5,8 @@
  * @package Video_Comments
  */
 
+declare(strict_types=1);
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -84,37 +86,38 @@ class Video_Comments_Render {
 			true // Load in footer.
 		);
 
-		// Localise settings for JS.
-		wp_localize_script(
+		// Pass settings to JS via inline script (preferred over wp_localize_script for REST nonces).
+		wp_add_inline_script(
 			'video-comments',
-			'vcSettings',
-			[
-				'restUrl'        => esc_url_raw( rest_url( Video_Comments_REST::NAMESPACE ) ),
-				'nonce'          => wp_create_nonce( 'vc_upload_nonce' ),
-				'restNonce'      => wp_create_nonce( 'wp_rest' ),
-				'maxSizeMb'      => Video_Comments_Settings::max_size_mb(),
-				'hasCredentials' => Video_Comments_Settings::has_mux_credentials(),
-				'allowGuests'    => Video_Comments_Settings::allow_guests(),
-				'isLoggedIn'     => is_user_logged_in(),
-				/* translators: %s: max size in MB */
-				'i18n'           => [
-					'selectVideo'    => __( 'Select video', 'video-comments' ),
-					'uploading'      => __( 'Uploading…', 'video-comments' ),
-					'uploadComplete' => __( 'Upload complete', 'video-comments' ),
-					'uploadError'    => __( 'Upload failed. Please try again.', 'video-comments' ),
-					'processing'     => __( 'Processing video…', 'video-comments' ),
-					'ready'          => __( 'Video ready', 'video-comments' ),
-					'clearVideo'     => __( 'Remove video', 'video-comments' ),
-					'noCredentials'  => __( 'Video uploads are not available at this time.', 'video-comments' ),
-					'guestsDisabled' => __( 'Please log in to attach a video.', 'video-comments' ),
-					'fileTooLarge'   => sprintf(
-						/* translators: %s: max size in MB */
-						__( 'File is too large. Maximum size is %s MB.', 'video-comments' ),
-						Video_Comments_Settings::max_size_mb()
-					),
-					'invalidType'    => __( 'Please select a video file.', 'video-comments' ),
-				],
-			]
+			'window.vcSettings = ' . wp_json_encode(
+				[
+					'restUrl'        => esc_url_raw( rest_url( Video_Comments_REST::NAMESPACE ) ),
+					'nonce'          => wp_create_nonce( 'vc_upload_nonce' ),
+					'restNonce'      => wp_create_nonce( 'wp_rest' ),
+					'maxSizeMb'      => Video_Comments_Settings::max_size_mb(),
+					'hasCredentials' => Video_Comments_Settings::has_mux_credentials(),
+					'allowGuests'    => Video_Comments_Settings::allow_guests(),
+					'isLoggedIn'     => is_user_logged_in(),
+					'i18n'           => [
+						'selectVideo'    => __( 'Select video', 'video-comments' ),
+						'uploading'      => __( 'Uploading…', 'video-comments' ),
+						'uploadComplete' => __( 'Upload complete', 'video-comments' ),
+						'uploadError'    => __( 'Upload failed. Please try again.', 'video-comments' ),
+						'processing'     => __( 'Processing video…', 'video-comments' ),
+						'ready'          => __( 'Video ready', 'video-comments' ),
+						'clearVideo'     => __( 'Remove video', 'video-comments' ),
+						'noCredentials'  => __( 'Video uploads are not available at this time.', 'video-comments' ),
+						'guestsDisabled' => __( 'Please log in to attach a video.', 'video-comments' ),
+						'fileTooLarge'   => sprintf(
+							/* translators: %s: max size in MB */
+							__( 'File is too large. Maximum size is %s MB.', 'video-comments' ),
+							Video_Comments_Settings::max_size_mb()
+						),
+						'invalidType'    => __( 'Please select a video file.', 'video-comments' ),
+					],
+				]
+			) . ';',
+			'before'
 		);
 
 		// Mux player (only needed for the display side, but enqueue here for efficiency).

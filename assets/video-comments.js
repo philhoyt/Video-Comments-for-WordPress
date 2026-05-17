@@ -204,10 +204,13 @@
 		// Delete the uploaded asset from Mux (best-effort, fire-and-forget).
 		if ( state.uploadId || state.assetId ) {
 			const params = new URLSearchParams( { nonce: cfg.nonce } );
+			// upload_id is required by the server for ownership verification.
+			if ( state.uploadId ) {
+				params.set( 'upload_id', state.uploadId );
+			}
+			// asset_id lets the server skip the Mux status lookup when available.
 			if ( state.assetId ) {
 				params.set( 'asset_id', state.assetId );
-			} else {
-				params.set( 'upload_id', state.uploadId );
 			}
 			fetch( cfg.restUrl + '/mux/video?' + params.toString(), {
 				method: 'DELETE',
