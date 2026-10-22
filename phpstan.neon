@@ -11,3 +11,6 @@ parameters:
         - vendor
         - node_modules (?)
         - tests (?)
+        - lib
+    bootstrapFiles:
+        - lib/plugin-update-checker/plugin-update-checker.php

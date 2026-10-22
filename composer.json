@@ -17,7 +17,10 @@
         "lint": "./vendor/bin/phpcs",
         "lint:fix": "./vendor/bin/phpcbf",
         "test": "./vendor/bin/phpunit",
-        "analyse": "./vendor/bin/phpstan analyse --memory-limit=1G"
+        "analyse": "./vendor/bin/phpstan analyse --memory-limit=1G",
+        "copy-puc": "rsync -a --delete vendor/yahnis-elsts/plugin-update-checker/ lib/plugin-update-checker/",
+        "post-install-cmd": "@copy-puc",
+        "post-update-cmd": "@copy-puc"
     },
     "config": {
         "allow-plugins": {
@@ -26,5 +29,8 @@
         "platform": {
             "php": "7.4.99"
         }
+    },
+    "require": {
+        "yahnis-elsts/plugin-update-checker": "^5.3"
     }
 }
