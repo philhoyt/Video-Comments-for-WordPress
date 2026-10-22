@@ -1,5 +1,7 @@
 # Video Comments
 
+[![CI](https://github.com/philhoyt/Video-Comments-for-WordPress/actions/workflows/ci.yml/badge.svg)](https://github.com/philhoyt/Video-Comments-for-WordPress/actions/workflows/ci.yml)
+
 Let commenters attach a short video to their comment.
 Videos upload directly to [Mux](https://www.mux.com/).
 
