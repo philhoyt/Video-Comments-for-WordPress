@@ -427,7 +427,7 @@
 						reject( new Error( i18n.uploadError || 'Video processing failed.' ) );
 					}
 					// 'waiting' | 'asset_created' → keep polling.
-				} catch ( err ) {
+				} catch {
 					// Network error during poll — keep trying.
 				}
 			}, 3000 );
