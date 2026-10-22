@@ -1,9 +1,0 @@
-{
-	"extends": [ "plugin:@wordpress/eslint-plugin/esnext" ],
-	"env": {
-		"browser": true
-	},
-	"globals": {
-		"vcSettings": "readonly"
-	}
-}
