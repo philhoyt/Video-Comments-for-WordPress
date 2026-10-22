@@ -14,7 +14,8 @@ Format: `topic — finding — source URL`
 
 ## Third-party libraries
 
-- (none yet)
+- ESLint — `@wordpress/eslint-plugin` exports flat configs from v25; v28 peers `eslint ^9 || ^10` and `@wordpress/scripts` 37 pins `eslint ^10`, so the toolchain is on ESLint 10 (flat config only; `.eslintrc.js` is ignored and flat config never climbs parent directories, which fixes the worktree crash) — https://www.npmjs.com/package/@wordpress/eslint-plugin
+- ESLint — from v9 `no-unused-vars` defaults `caughtErrors` to `"all"`, so `catch ( err )` with an unused `err` is an error; use the optional catch binding `catch {` — https://eslint.org/docs/latest/rules/no-unused-vars
 
 ## Local environment
 

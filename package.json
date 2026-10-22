@@ -36,10 +36,10 @@
   "homepage": "https://github.com/philhoyt/Video-Comments-for-WordPress#readme",
   "devDependencies": {
     "@wordpress/env": "^10.39.0",
-    "@wordpress/eslint-plugin": "^24.2.0",
-    "@wordpress/scripts": "^31.5.0",
-    "@wordpress/stylelint-config": "^23.32.0",
-    "eslint": "^8.57.1",
-    "stylelint": "^16.26.1"
+    "@wordpress/eslint-plugin": "^28.0.0",
+    "@wordpress/scripts": "^37.0.0",
+    "@wordpress/stylelint-config": "^27.0.0",
+    "eslint": "^10.13.0",
+    "stylelint": "^17.16.0"
   }
 }
