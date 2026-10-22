@@ -3,6 +3,17 @@ module.exports = {
 	env: {
 		browser: true,
 	},
+	globals: {
+		vcSettings: 'readonly',
+	},
+	ignorePatterns: [
+		'.claude/**',
+		'build/**',
+		'lib/**',
+		'plans/**',
+		'vendor/**',
+		'node_modules/**',
+	],
 	rules: {
 		// Vanilla JS — no JSX/React in this plugin.
 		'react/react-in-jsx-scope': 'off',

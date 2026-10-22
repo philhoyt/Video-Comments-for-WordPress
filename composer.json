@@ -4,17 +4,20 @@
     "type": "wordpress-plugin",
     "require-dev": {
         "squizlabs/php_codesniffer": "^3.10",
-        "wp-coding-standards/wpcs": "^3.1",
+        "wp-coding-standards/wpcs": "^3.4.1",
         "phpcsstandards/phpcsutils": "^1.0",
-        "phpcsstandards/phpcsextra": "^1.2"
+        "phpcsstandards/phpcsextra": "^1.2",
+        "phpunit/phpunit": "^9.6",
+        "yoast/phpunit-polyfills": "^2.0",
+        "phpstan/phpstan": "^2.3",
+        "szepeviktor/phpstan-wordpress": "^2.0"
     },
     "license": "GPL-2.0-or-later",
-    "require": {
-        "yahnis-elsts/plugin-update-checker": "^5.3"
-    },
     "scripts": {
-        "lint": "phpcs",
-        "lint:fix": "phpcbf",
+        "lint": "./vendor/bin/phpcs",
+        "lint:fix": "./vendor/bin/phpcbf",
+        "test": "./vendor/bin/phpunit",
+        "analyse": "./vendor/bin/phpstan analyse --memory-limit=1G",
         "copy-puc": "rsync -a --delete vendor/yahnis-elsts/plugin-update-checker/ lib/plugin-update-checker/",
         "post-install-cmd": "@copy-puc",
         "post-update-cmd": "@copy-puc"
@@ -22,6 +25,12 @@
     "config": {
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true
+        },
+        "platform": {
+            "php": "7.4.99"
         }
+    },
+    "require": {
+        "yahnis-elsts/plugin-update-checker": "^5.3"
     }
 }
