@@ -6,33 +6,40 @@ on:
       - 'v*'
 
 jobs:
-  build:
-    name: Build and release plugin ZIP
+  release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install JS dependencies
         run: npm ci
 
-      - name: Build plugin ZIP
+      - name: Create plugin zip
         run: npm run plugin-zip
 
-      - name: Get tag name
-        id: tag
-        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+      - name: Extract changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk "/^= ${VERSION} =/{found=1; next} found && (/^= [0-9]/ || /^== /){exit} found{print}" readme.txt > changelog_body.txt
+          if [ ! -s changelog_body.txt ]; then
+            echo "No changelog entry for ${VERSION} in readme.txt" >&2
+            exit 1
+          fi
 
-      - name: Create GitHub Release
+      - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ steps.tag.outputs.TAG }}
-          body_path: CHANGELOG.md
-          files: video-comments.zip
+          files: |
+            video-comments.zip
+            readme.txt
+          body_path: changelog_body.txt
