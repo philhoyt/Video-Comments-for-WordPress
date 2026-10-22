@@ -14,7 +14,13 @@
     "lint:css": "stylelint \"assets/*.css\"",
     "lint": "npm run lint:js && npm run lint:css",
     "plugin-zip": "wp-scripts plugin-zip",
-    "make-pot": "wp i18n make-pot . languages/video-comments.pot --domain=video-comments --exclude=vendor,node_modules"
+    "make-pot": "wp i18n make-pot . languages/video-comments.pot --domain=video-comments --exclude=vendor,node_modules",
+    "test:unit": "wp-scripts test-unit-js",
+    "test:e2e": "wp-scripts test-playwright",
+    "env:start": "wp-env start",
+    "env:stop": "wp-env stop",
+    "env:reset": "wp-env reset",
+    "test:php": "wp-env run tests-cli --env-cwd wp-content/plugins/video-comments -- vendor/bin/phpunit"
   },
   "repository": {
     "type": "git",
@@ -28,6 +34,7 @@
   },
   "homepage": "https://github.com/philhoyt/Video-Comments-for-WordPress#readme",
   "devDependencies": {
+    "@wordpress/env": "^10.39.0",
     "@wordpress/eslint-plugin": "^24.2.0",
     "@wordpress/scripts": "^31.5.0",
     "@wordpress/stylelint-config": "^23.32.0",
