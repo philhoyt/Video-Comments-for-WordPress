@@ -9,10 +9,15 @@
         "phpcsstandards/phpcsextra": "^1.2"
     },
     "license": "GPL-2.0-or-later",
-    "require": {},
+    "require": {
+        "yahnis-elsts/plugin-update-checker": "^5.3"
+    },
     "scripts": {
         "lint": "phpcs",
-        "lint:fix": "phpcbf"
+        "lint:fix": "phpcbf",
+        "copy-puc": "rsync -a --delete vendor/yahnis-elsts/plugin-update-checker/ lib/plugin-update-checker/",
+        "post-install-cmd": "@copy-puc",
+        "post-update-cmd": "@copy-puc"
     },
     "config": {
         "allow-plugins": {

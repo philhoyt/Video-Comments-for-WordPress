@@ -19,6 +19,8 @@
 
 declare(strict_types=1);
 
+use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
+
 defined( 'ABSPATH' ) || exit;
 
 // Plugin constants.
@@ -26,6 +28,19 @@ define( 'VIDEO_COMMENTS_VERSION', '1.0.0' );
 define( 'VIDEO_COMMENTS_PLUGIN_FILE', __FILE__ );
 define( 'VIDEO_COMMENTS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'VIDEO_COMMENTS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+
+// Plugin Update Checker: serves updates from GitHub releases (video-comments.zip asset).
+require_once VIDEO_COMMENTS_PLUGIN_DIR . 'lib/plugin-update-checker/plugin-update-checker.php';
+
+$video_comments_update_checker     = PucFactory::buildUpdateChecker(
+	'https://github.com/philhoyt/Video-Comments-for-WordPress/',
+	__FILE__,
+	'video-comments'
+);
+$video_comments_update_checker_api = $video_comments_update_checker->getVcsApi();
+if ( method_exists( $video_comments_update_checker_api, 'enableReleaseAssets' ) ) {
+	$video_comments_update_checker_api->enableReleaseAssets();
+}
 
 /**
  * Bootstrap the plugin after all plugins are loaded.
