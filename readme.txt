@@ -4,7 +4,7 @@ Tags: comments, video, mux, upload, media
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -93,6 +93,9 @@ Make sure your theme calls `wp_footer()`, your Mux credentials are saved, and no
 
 == Changelog ==
 
+= 1.1.1 =
+* Fix: Automatic updates from GitHub releases always download the plugin zip. Version 1.1.0 could pick readme.txt as the update package, so sites on 1.1.0 need to install this version by hand once.
+
 = 1.1.0 =
 * Security: Each upload now carries a one-time token. Only the browser that started an upload can check its status or remove it, and the playback and asset IDs are looked up from Mux when the comment is saved instead of being accepted from the form.
 * Security: The Mux Token Secret is no longer written back into the settings form. Leave the field blank to keep it, or tick the new checkbox to clear it.
@@ -110,6 +113,9 @@ Make sure your theme calls `wp_footer()`, your Mux credentials are saved, and no
 * Initial release.
 
 == Upgrade Notice ==
+
+= 1.1.1 =
+Fixes the GitHub release updater choosing the wrong asset. Sites on 1.1.0 must install this version by hand once; updates work automatically from then on.
 
 = 1.1.0 =
 Security hardening of the upload flow, background clean-up of Mux assets, privacy-tools support and accessibility fixes. Pages cached before the update need a refresh before their first upload.
