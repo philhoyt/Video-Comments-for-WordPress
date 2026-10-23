@@ -9,13 +9,14 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-23T01:37:20+00:00\n"
+"POT-Creation-Date: 2026-10-23T02:45:22+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: video-comments\n"
 
 #. Plugin Name of the plugin
 #: video-comments.php
+#: includes/class-privacy.php:67
 msgid "Video Comments using Mux"
 msgstr ""
 
@@ -39,131 +40,209 @@ msgstr ""
 msgid "https://philhoyt.com/"
 msgstr ""
 
-#: includes/class-comment-meta.php:220
+#: includes/class-comment-meta.php:222
 msgid "Video Comment"
 msgstr ""
 
-#: includes/class-comment-meta.php:240
+#: includes/class-comment-meta.php:242
 msgid "Mux Playback ID"
 msgstr ""
 
-#: includes/class-comment-meta.php:248
+#: includes/class-comment-meta.php:250
 msgid "Leave blank to remove the video"
 msgstr ""
 
-#: includes/class-render.php:102
-msgid "Select video"
+#: includes/class-privacy.php:62
+msgid "Suggested text for sites that let commenters attach a video. Adjust the retention and contact details to match your site."
 msgstr ""
 
-#: includes/class-render.php:103
-msgid "Uploading…"
+#: includes/class-privacy.php:63
+msgid "When you attach a video to a comment, the video file is uploaded from your browser directly to Mux (Mux, Inc.), a third-party video hosting service, and is stored and streamed from their servers. Mux's handling of that file is governed by their privacy policy."
 msgstr ""
 
-#: includes/class-render.php:104
-msgid "Upload complete"
+#: includes/class-privacy.php:64
+msgid "This site stores only the identifiers Mux assigns to your video, linked to your comment. Anyone who can view the comment can watch the video. Pages that show a video load the Mux video player from a third-party content delivery network (jsDelivr), which receives your IP address as part of that request."
 msgstr ""
 
-#: includes/class-render.php:105
-msgid "Upload failed. Please try again."
+#: includes/class-privacy.php:65
+msgid "Your IP address is used in hashed form for up to one minute to limit how often video uploads can be requested. Videos are deleted from Mux when the comment they belong to is permanently deleted, when a site administrator removes the video, when an upload is abandoned without posting a comment, or when you ask us to erase your personal data."
 msgstr ""
 
-#: includes/class-render.php:106
-msgid "Processing video…"
+#: includes/class-privacy.php:82
+#: includes/class-privacy.php:107
+#: includes/class-privacy.php:149
+msgid "Comment videos"
 msgstr ""
 
-#: includes/class-render.php:107
-msgid "Video ready"
+#: includes/class-privacy.php:108
+msgid "Videos attached to your comments. The video files are hosted by Mux."
 msgstr ""
 
-#: includes/class-render.php:108
-msgid "Remove video"
+#: includes/class-privacy.php:112
+msgid "Comment date"
 msgstr ""
 
-#: includes/class-render.php:109
-#: includes/class-render.php:170
-msgid "Video uploads are not available at this time."
+#: includes/class-privacy.php:116
+msgid "Comment URL"
+msgstr ""
+
+#: includes/class-privacy.php:120
+msgid "Video"
+msgstr ""
+
+#: includes/class-privacy.php:124
+msgid "Mux playback ID"
+msgstr ""
+
+#: includes/class-privacy.php:187
+msgid "Videos attached to comments were removed and their deletion from Mux has been scheduled."
 msgstr ""
 
 #: includes/class-render.php:110
+msgid "Select video"
+msgstr ""
+
+#: includes/class-render.php:111
+msgid "Uploading…"
+msgstr ""
+
+#: includes/class-render.php:112
+msgid "Upload complete"
+msgstr ""
+
+#: includes/class-render.php:113
+msgid "Upload failed. Please try again."
+msgstr ""
+
+#: includes/class-render.php:114
+msgid "Processing video…"
+msgstr ""
+
+#: includes/class-render.php:115
+msgid "Video ready"
+msgstr ""
+
+#: includes/class-render.php:116
+msgid "Remove video"
+msgstr ""
+
+#: includes/class-render.php:117
+#: includes/class-render.php:201
+msgid "Video uploads are not available at this time."
+msgstr ""
+
+#: includes/class-render.php:118
 msgid "Please log in to attach a video."
 msgstr ""
 
 #. translators: %s: max size in MB
-#: includes/class-render.php:113
+#: includes/class-render.php:121
 #, php-format
 msgid "File is too large. Maximum size is %s MB."
 msgstr ""
 
-#: includes/class-render.php:116
+#: includes/class-render.php:124
 msgid "Please select a video file."
 msgstr ""
 
-#: includes/class-render.php:165
+#: includes/class-render.php:125
+msgid "Upload cancelled."
+msgstr ""
+
+#: includes/class-render.php:126
+msgid "Timed out waiting for the video to process. Please try again."
+msgstr ""
+
+#: includes/class-render.php:127
+msgid "Video processing failed. Please try another file."
+msgstr ""
+
+#: includes/class-render.php:128
+msgid "Upload in progress. Please wait."
+msgstr ""
+
+#. translators: %s: file size in kilobytes
+#: includes/class-render.php:130
+#, php-format
+msgid "%s KB"
+msgstr ""
+
+#. translators: %s: file size in megabytes
+#: includes/class-render.php:132
+#, php-format
+msgid "%s MB"
+msgstr ""
+
+#: includes/class-render.php:196
 msgid "Upload a video"
 msgstr ""
 
-#: includes/class-render.php:174
+#: includes/class-render.php:205
 msgid "Please log in to attach a video to your comment."
 msgstr ""
 
-#: includes/class-render.php:191
+#: includes/class-render.php:222
 msgid "Choose a video or drag it here"
 msgstr ""
 
 #. translators: %s: max file size in MB
-#: includes/class-render.php:197
+#: includes/class-render.php:228
 #, php-format
 msgid "MP4, MOV, WebM, MKV &middot; max %s MB"
 msgstr ""
 
-#: includes/class-render.php:212
+#: includes/class-render.php:243
 msgid "Upload Video"
 msgstr ""
 
-#: includes/class-render.php:220
+#: includes/class-render.php:251
 msgid "Remove"
 msgstr ""
 
-#: includes/class-rest.php:169
+#: includes/class-render.php:256
+msgid "Upload progress"
+msgstr ""
+
+#: includes/class-rest.php:172
 msgid "Video Comments is currently disabled."
 msgstr ""
 
-#: includes/class-rest.php:178
+#: includes/class-rest.php:181
 msgid "Video uploads are not available for guests."
 msgstr ""
 
-#: includes/class-rest.php:188
+#: includes/class-rest.php:191
 msgid "Security check failed. Please refresh the page."
 msgstr ""
 
-#: includes/class-rest.php:242
+#: includes/class-rest.php:245
 msgid "You are not authorised to access this upload."
 msgstr ""
 
-#: includes/class-rest.php:264
+#: includes/class-rest.php:267
 msgid "Mux API credentials are not configured. Please contact the site administrator."
 msgstr ""
 
 #. translators: %s: max size in MB
-#: includes/class-rest.php:276
+#: includes/class-rest.php:279
 #, php-format
 msgid "File exceeds the maximum allowed size of %s MB."
 msgstr ""
 
-#: includes/class-rest.php:291
+#: includes/class-rest.php:294
 msgid "That file type is not allowed. Please upload a video file."
 msgstr ""
 
-#: includes/class-rest.php:321
-#: includes/class-rest.php:366
+#: includes/class-rest.php:327
+#: includes/class-rest.php:372
 msgid "Mux API credentials are not configured."
 msgstr ""
 
-#: includes/class-rest.php:331
+#: includes/class-rest.php:337
 msgid "upload_id is required."
 msgstr ""
 
-#: includes/class-rest.php:485
+#: includes/class-rest.php:502
 msgid "Too many requests. Please wait a moment and try again."
 msgstr ""
 
@@ -172,55 +251,63 @@ msgstr ""
 msgid "Video Comments"
 msgstr ""
 
-#: includes/class-settings.php:147
+#: includes/class-settings.php:152
 msgid "General"
 msgstr ""
 
-#: includes/class-settings.php:154
+#: includes/class-settings.php:159
 msgid "Mux API Credentials"
 msgstr ""
 
-#: includes/class-settings.php:162
+#: includes/class-settings.php:167
 msgid "Enable Video Comments"
 msgstr ""
 
-#: includes/class-settings.php:168
+#: includes/class-settings.php:173
 msgid "Allow commenters to attach a video"
 msgstr ""
 
-#: includes/class-settings.php:174
+#: includes/class-settings.php:179
 msgid "Allow Guests"
 msgstr ""
 
-#: includes/class-settings.php:180
+#: includes/class-settings.php:185
 msgid "Let non-logged-in users upload videos"
 msgstr ""
 
-#: includes/class-settings.php:186
+#: includes/class-settings.php:191
 msgid "Max Upload Size (MB)"
 msgstr ""
 
-#: includes/class-settings.php:200
+#: includes/class-settings.php:206
 msgid "Token ID"
 msgstr ""
 
-#: includes/class-settings.php:213
+#: includes/class-settings.php:220
 msgid "Token Secret"
 msgstr ""
 
-#: includes/class-settings.php:253
+#: includes/class-settings.php:272
 msgid "Enter your Mux API credentials below, or define VIDEO_COMMENTS_MUX_TOKEN_ID and VIDEO_COMMENTS_MUX_TOKEN_SECRET in wp-config.php to keep secrets out of the database."
 msgstr ""
 
-#: includes/class-settings.php:306
+#: includes/class-settings.php:330
 msgid "Set via constant in wp-config.php"
 msgstr ""
 
-#: includes/class-settings.php:328
+#: includes/class-settings.php:341
+msgid "Saved. Enter a new value to replace it."
+msgstr ""
+
+#: includes/class-settings.php:348
+msgid "Clear the saved secret"
+msgstr ""
+
+#: includes/class-settings.php:373
 msgid "Video Comments Settings"
 msgstr ""
 
-#: includes/class-settings.php:332
+#: includes/class-settings.php:377
 msgid "Mux credentials are not configured. The video upload UI will be hidden from commenters until credentials are set."
 msgstr ""
 
