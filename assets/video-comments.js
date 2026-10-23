@@ -21,6 +21,7 @@
  * @property {boolean} hasCredentials Whether Mux credentials are configured.
  * @property {boolean} allowGuests    Whether guests may upload.
  * @property {boolean} isLoggedIn     Whether the current user is logged in.
+ * @property {boolean} allowVideoOnly Whether a comment may be a video with no text on this site.
  * @property {Object}  i18n           Localised strings.
  */
 
@@ -48,10 +49,17 @@
 	let uploadIdField = null;
 	let uploadTokenField = null;
 	let submitBtn = null;
+	let commentField = null; // The comment textarea (#comment).
+	let commentRequiredMark = null; // Its label's required indicator, if any.
 
 	// Original dropzone text — stored during init so resetState can restore them.
 	let defaultPrimaryText = '';
 	let defaultSecondaryText = '';
+
+	// Whether the comment textarea started out required (and with aria-required),
+	// so setTextRequired() only ever restores what the theme rendered.
+	let commentWasRequired = false;
+	let commentHadAriaRequired = false;
 
 	// -------------------------------------------------------------------------
 	// State
@@ -99,6 +107,16 @@
 		if ( ! fileInput ) {
 			return;
 		} // Uploader section not rendered (no creds / guest disabled).
+
+		// The comment textarea and its required indicator: once a video is ready,
+		// text becomes optional and the browser must stop blocking an empty submit.
+		commentField = document.getElementById( 'comment' );
+		if ( commentField ) {
+			commentWasRequired = commentField.required;
+			commentHadAriaRequired = commentField.hasAttribute( 'aria-required' );
+			const label = form.querySelector( 'label[for="comment"]' ) || document.querySelector( 'label[for="comment"]' );
+			commentRequiredMark = label ? label.querySelector( '.required' ) : null;
+		}
 
 		// Store the default drop zone text so resetState can restore it.
 		if ( dropzonePrimary ) {
@@ -443,7 +461,13 @@
 						}
 						stopProcessingAnimation();
 						lockForm( false );
-						setStatus( i18n.ready || 'Video ready — looks good? Submit your comment below.', 'success' );
+						setTextRequired( false );
+						setStatus(
+							cfg.allowVideoOnly
+								? ( i18n.readyVideoOnly || 'Video ready. You can post it on its own or add a comment below.' )
+								: ( i18n.ready || 'Video ready' ),
+							'success'
+						);
 						showPreviewPlayer( json.playback_id );
 						resolve();
 					} else if ( json.status === 'errored' ) {
@@ -512,6 +536,28 @@
 		setProgress( 0 );
 		setStatus( '' );
 		lockForm( false );
+		setTextRequired( true );
+	}
+
+	/**
+	 * Make the comment textarea required or optional. Text is optional only while
+	 * a ready video is attached and the site allows video-only comments; the
+	 * server enforces the same rule, so this only changes what the browser blocks.
+	 * No-op when the theme did not render the field as required to begin with.
+	 *
+	 * @param {boolean} required
+	 */
+	function setTextRequired( required ) {
+		if ( ! commentField || ! commentWasRequired || ! cfg.allowVideoOnly ) {
+			return;
+		}
+		commentField.required = required;
+		if ( commentHadAriaRequired ) {
+			commentField.setAttribute( 'aria-required', required ? 'true' : 'false' );
+		}
+		if ( commentRequiredMark ) {
+			commentRequiredMark.hidden = ! required;
+		}
 	}
 
 	/**
