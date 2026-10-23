@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-23T03:27:21+00:00\n"
+"POT-Creation-Date: 2026-10-23T04:19:35+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: video-comments\n"
@@ -40,15 +40,27 @@ msgstr ""
 msgid "https://philhoyt.com/"
 msgstr ""
 
-#: includes/class-comment-meta.php:222
+#: includes/class-comment-meta.php:388
+#: includes/class-render.php:125
+#: includes/class-render.php:209
+msgid "Video uploads are not available at this time."
+msgstr ""
+
+#. translators: %s: link to the comment
+#: includes/class-comment-meta.php:464
+#, php-format
+msgid "This comment includes a video: %s"
+msgstr ""
+
+#: includes/class-comment-meta.php:496
 msgid "Video Comment"
 msgstr ""
 
-#: includes/class-comment-meta.php:242
+#: includes/class-comment-meta.php:516
 msgid "Mux Playback ID"
 msgstr ""
 
-#: includes/class-comment-meta.php:250
+#: includes/class-comment-meta.php:524
 msgid "Leave blank to remove the video"
 msgstr ""
 
@@ -98,109 +110,116 @@ msgstr ""
 msgid "Videos attached to comments were removed and their deletion from Mux has been scheduled."
 msgstr ""
 
-#: includes/class-render.php:110
+#: includes/class-render.php:117
 msgid "Select video"
 msgstr ""
 
-#: includes/class-render.php:111
+#: includes/class-render.php:118
 msgid "Uploading…"
 msgstr ""
 
-#: includes/class-render.php:112
+#: includes/class-render.php:119
 msgid "Upload complete"
 msgstr ""
 
-#: includes/class-render.php:113
+#: includes/class-render.php:120
 msgid "Upload failed. Please try again."
 msgstr ""
 
-#: includes/class-render.php:114
+#: includes/class-render.php:121
 msgid "Processing video…"
 msgstr ""
 
-#: includes/class-render.php:115
+#: includes/class-render.php:122
 msgid "Video ready"
 msgstr ""
 
-#: includes/class-render.php:116
+#: includes/class-render.php:123
+msgid "Video ready. You can post it on its own or add a comment below."
+msgstr ""
+
+#: includes/class-render.php:124
 msgid "Remove video"
 msgstr ""
 
-#: includes/class-render.php:117
-#: includes/class-render.php:201
-msgid "Video uploads are not available at this time."
-msgstr ""
-
-#: includes/class-render.php:118
+#: includes/class-render.php:126
 msgid "Please log in to attach a video."
 msgstr ""
 
 #. translators: %s: max size in MB
-#: includes/class-render.php:121
+#: includes/class-render.php:129
 #, php-format
 msgid "File is too large. Maximum size is %s MB."
 msgstr ""
 
-#: includes/class-render.php:124
+#: includes/class-render.php:132
 msgid "Please select a video file."
 msgstr ""
 
-#: includes/class-render.php:125
+#: includes/class-render.php:133
 msgid "Upload cancelled."
 msgstr ""
 
-#: includes/class-render.php:126
+#: includes/class-render.php:134
 msgid "Timed out waiting for the video to process. Please try again."
 msgstr ""
 
-#: includes/class-render.php:127
+#: includes/class-render.php:135
 msgid "Video processing failed. Please try another file."
 msgstr ""
 
-#: includes/class-render.php:128
+#: includes/class-render.php:136
 msgid "Upload in progress. Please wait."
 msgstr ""
 
 #. translators: %s: file size in kilobytes
-#: includes/class-render.php:130
+#: includes/class-render.php:138
 #, php-format
 msgid "%s KB"
 msgstr ""
 
 #. translators: %s: file size in megabytes
-#: includes/class-render.php:132
+#: includes/class-render.php:140
 #, php-format
 msgid "%s MB"
 msgstr ""
 
-#: includes/class-render.php:196
+#: includes/class-render.php:204
 msgid "Upload a video"
 msgstr ""
 
-#: includes/class-render.php:205
+#: includes/class-render.php:213
 msgid "Please log in to attach a video to your comment."
 msgstr ""
 
-#: includes/class-render.php:222
+#: includes/class-render.php:230
 msgid "Choose a video or drag it here"
 msgstr ""
 
 #. translators: %s: max file size in MB
-#: includes/class-render.php:228
+#: includes/class-render.php:236
 #, php-format
 msgid "MP4, MOV, WebM, MKV &middot; max %s MB"
 msgstr ""
 
-#: includes/class-render.php:243
+#: includes/class-render.php:251
 msgid "Upload Video"
 msgstr ""
 
-#: includes/class-render.php:251
+#: includes/class-render.php:259
 msgid "Remove"
 msgstr ""
 
-#: includes/class-render.php:256
+#: includes/class-render.php:264
 msgid "Upload progress"
+msgstr ""
+
+#: includes/class-render.php:353
+msgid "Video comment"
+msgstr ""
+
+#: includes/class-render.php:363
+msgid "[Video comment]"
 msgstr ""
 
 #: includes/class-rest.php:172
