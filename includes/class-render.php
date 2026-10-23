@@ -58,6 +58,11 @@ class Video_Comments_Render {
 
 		// Render video player below comment text.
 		add_filter( 'comment_text', [ $this, 'append_video_player' ], 20, 2 );
+
+		// The Comment Content block returns '' for an empty body before it applies
+		// comment_text, so a video-only comment would render nothing in a block
+		// theme. Give it a visually hidden label to get past that guard.
+		add_filter( 'get_comment_text', [ $this, 'label_empty_video_comment' ], 20, 2 );
 	}
 
 	// -------------------------------------------------------------------------
@@ -106,6 +111,8 @@ class Video_Comments_Render {
 					'hasCredentials' => Video_Comments_Settings::has_mux_credentials(),
 					'allowGuests'    => Video_Comments_Settings::allow_guests(),
 					'isLoggedIn'     => is_user_logged_in(),
+					/** This filter is documented in class-comment-meta.php; $commentdata is empty at render time. */
+					'allowVideoOnly' => (bool) apply_filters( 'video_comments_allow_video_only', true, [] ),
 					'i18n'           => [
 						'selectVideo'      => __( 'Select video', 'video-comments' ),
 						'uploading'        => __( 'Uploading…', 'video-comments' ),
@@ -113,6 +120,7 @@ class Video_Comments_Render {
 						'uploadError'      => __( 'Upload failed. Please try again.', 'video-comments' ),
 						'processing'       => __( 'Processing video…', 'video-comments' ),
 						'ready'            => __( 'Video ready', 'video-comments' ),
+						'readyVideoOnly'   => __( 'Video ready. You can post it on its own or add a comment below.', 'video-comments' ),
 						'clearVideo'       => __( 'Remove video', 'video-comments' ),
 						'noCredentials'    => __( 'Video uploads are not available at this time.', 'video-comments' ),
 						'guestsDisabled'   => __( 'Please log in to attach a video.', 'video-comments' ),
@@ -303,6 +311,14 @@ class Video_Comments_Render {
 			return $text;
 		}
 
+		// Admin screens (the Comments list, not admin-ajax, which front-end themes
+		// may use) have no player script. A video-only comment would show an inert
+		// element and nothing else, so point the moderator at the edit screen,
+		// where the meta box plays the video.
+		if ( is_admin() && ! wp_doing_ajax() && '' === trim( (string) $comment->comment_content ) ) {
+			return $this->build_admin_placeholder_html( $comment );
+		}
+
 		// A video is about to render: make sure the player element and its styles load,
 		// whether or not comments are still open on this post.
 		$this->enqueue_style();
@@ -311,6 +327,47 @@ class Video_Comments_Render {
 		$player_html = $this->build_player_html( $playback_id );
 
 		return $player_html . $text;
+	}
+
+	/**
+	 * Give an empty-bodied video comment a visually hidden label so callers that
+	 * drop empty comment text, such as the Comment Content block, still render it.
+	 *
+	 * Runs on get_comment_text before the comment_text filters, so the label is
+	 * what wpautop() and friends see; append_video_player() then prepends the
+	 * player as it does for any other comment.
+	 *
+	 * @param mixed           $text    Raw comment text (a string from core; checked because other filters run first).
+	 * @param WP_Comment|null $comment Comment object.
+	 * @return mixed The text, or the label for an empty-bodied video comment.
+	 */
+	public function label_empty_video_comment( $text, $comment = null ) {
+		if ( ! $comment instanceof WP_Comment || ! is_string( $text ) || '' !== trim( $text ) ) {
+			return $text;
+		}
+
+		if ( '' === Video_Comments_Comment_Meta::get_playback_id( (int) $comment->comment_ID ) ) {
+			return $text;
+		}
+
+		return '<span class="vc-sr-only">' . esc_html__( 'Video comment', 'video-comments' ) . '</span>';
+	}
+
+	/**
+	 * Build the admin Comments-list placeholder for a comment that is only a video.
+	 *
+	 * @param WP_Comment $comment Comment object.
+	 * @return string HTML markup.
+	 */
+	private function build_admin_placeholder_html( WP_Comment $comment ): string {
+		$label = esc_html__( '[Video comment]', 'video-comments' );
+		$edit  = get_edit_comment_link( (int) $comment->comment_ID );
+
+		if ( empty( $edit ) ) {
+			return '<p class="video-comment-placeholder">' . $label . '</p>';
+		}
+
+		return '<p class="video-comment-placeholder"><a href="' . esc_url( $edit ) . '">' . $label . '</a></p>';
 	}
 
 	/**

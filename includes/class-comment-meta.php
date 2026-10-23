@@ -44,6 +44,42 @@ class Video_Comments_Comment_Meta {
 	/** Nonce field name. */
 	public const NONCE_FIELD = 'video_comments_comment_nonce';
 
+	/** Transient prefix for cached "ready" upload statuses. A ready status is final. */
+	private const READY_CACHE_PREFIX = 'video_comments_ready_';
+
+	/** Lifetime of a cached ready status. */
+	private const READY_CACHE_TTL = 600; // 10 minutes.
+
+	/** Mux IDs are alphanumeric plus hyphens. */
+	private const ID_PATTERN = '/^[A-Za-z0-9\-]+$/';
+
+	/**
+	 * Per-request memo of Mux status lookups, upload_id => status array or WP_Error.
+	 * A key here only means a lookup happened, whatever its result.
+	 *
+	 * @var array<string,array<string,mixed>|WP_Error>
+	 */
+	private static array $resolved_uploads = [];
+
+	/**
+	 * Uploads that passed every video-only check in this request, upload_id => status array.
+	 * Only this array authorises the empty-body and duplicate-check bypasses.
+	 *
+	 * @var array<string,array<string,mixed>>
+	 */
+	private static array $authorized_uploads = [];
+
+	/**
+	 * Forget per-request state. PHPUnit runs every test in one process, so tests
+	 * call this between runs; production requests never need to.
+	 *
+	 * @internal
+	 */
+	public static function reset_request_state(): void {
+		self::$resolved_uploads   = [];
+		self::$authorized_uploads = [];
+	}
+
 	/** Singleton accessor. */
 	public static function get_instance(): self {
 		if ( null === self::$instance ) {
@@ -57,11 +93,26 @@ class Video_Comments_Comment_Meta {
 
 	/** Register hooks for saving and displaying comment video meta. */
 	public function init(): void {
-		// Save meta after comment is inserted.
-		add_action( 'comment_post', [ $this, 'save_comment_video_meta' ], 10, 3 );
+		// Save meta after comment is inserted. Priority 5 so the video is attached
+		// before core's wp_new_comment_notify_moderator() and
+		// wp_new_comment_notify_postauthor() (both comment_post at priority 10)
+		// build their emails and can mention it.
+		add_action( 'comment_post', [ $this, 'save_comment_video_meta' ], 5, 3 );
 
 		// Carry the upload fields through WP comment data sanitization.
 		add_filter( 'preprocess_comment', [ $this, 'capture_upload_fields_before_sanitize' ] );
+
+		// Video-only comments: the empty-body and duplicate-check overrides are
+		// registered from pre_comment_on_post, which only the classic form handler
+		// wp_handle_comment_submission() fires. REST and XML-RPC comment creation
+		// apply allow_empty_comment too but never fire comment_post, so a video
+		// could not be attached there; scoping the hooks keeps them rejected.
+		add_action( 'pre_comment_on_post', [ $this, 'register_form_submission_hooks' ] );
+
+		// A video-only comment has an empty "Comment:" line in core's emails; say
+		// there is a video and where to see it.
+		add_filter( 'comment_notification_text', [ $this, 'append_video_notice_to_author_email' ], 10, 2 );
+		add_filter( 'comment_moderation_text', [ $this, 'append_video_notice_to_moderation_email' ], 10, 2 );
 
 		// Admin comment edit page.
 		add_action( 'add_meta_boxes_comment', [ $this, 'add_comment_meta_box' ] );
@@ -89,21 +140,33 @@ class Video_Comments_Comment_Meta {
 			return $comment_data;
 		}
 
-		// phpcs:disable WordPress.Security.NonceVerification.Missing -- nonce verified in save_comment_video_meta.
-		$upload_id = isset( $_POST[ self::FORM_FIELD_UPLOAD ] )
-			? sanitize_text_field( wp_unslash( $_POST[ self::FORM_FIELD_UPLOAD ] ) )
-			: '';
-
-		$token = isset( $_POST[ self::FORM_FIELD_TOKEN ] )
-			? sanitize_text_field( wp_unslash( $_POST[ self::FORM_FIELD_TOKEN ] ) )
-			: '';
-		// phpcs:enable WordPress.Security.NonceVerification.Missing
-
 		// Store on the data array under private keys so they survive into the post hook.
-		$comment_data['_vc_upload_id']    = $upload_id;
-		$comment_data['_vc_upload_token'] = $token;
+		// Nonce verified in save_comment_video_meta.
+		$comment_data['_vc_upload_id']    = self::posted_field( self::FORM_FIELD_UPLOAD );
+		$comment_data['_vc_upload_token'] = self::posted_field( self::FORM_FIELD_TOKEN );
 
 		return $comment_data;
+	}
+
+	/**
+	 * Read one of the plugin's hidden form fields from the request body.
+	 * Anything that is not a string (an array-valued field) reads as empty.
+	 *
+	 * @param string $name Field name.
+	 */
+	private static function posted_field( string $name ): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- callers verify the form nonce before acting on the value.
+		if ( ! isset( $_POST[ $name ] ) || ! is_string( $_POST[ $name ] ) ) {
+			return '';
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		return sanitize_text_field( wp_unslash( $_POST[ $name ] ) );
+	}
+
+	/** Whether the request carries a valid comment-form nonce for this plugin. */
+	private static function form_nonce_is_valid(): bool {
+		$nonce = self::posted_field( self::NONCE_FIELD );
+		return '' !== $nonce && false !== wp_verify_nonce( $nonce, self::NONCE_ACTION );
 	}
 
 	/**
@@ -130,12 +193,7 @@ class Video_Comments_Comment_Meta {
 		}
 
 		// Verify the nonce posted with the comment form.
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$nonce = isset( $_POST[ self::NONCE_FIELD ] )
-			? sanitize_text_field( wp_unslash( $_POST[ self::NONCE_FIELD ] ) )
-			: '';
-
-		if ( ! wp_verify_nonce( $nonce, self::NONCE_ACTION ) ) {
+		if ( ! self::form_nonce_is_valid() ) {
 			// No nonce or invalid — silently skip; the comment itself is still saved.
 			return;
 		}
@@ -147,35 +205,31 @@ class Video_Comments_Comment_Meta {
 			return;
 		}
 
+		// A video-only submission already proved ownership and readiness in
+		// allow_video_only_comment() during this request; reuse that result so
+		// the attach cannot diverge from the decision that let the comment in.
+		$authorized = isset( self::$authorized_uploads[ $upload_id ] );
+
 		// Only the caller who created the upload holds its token.
-		if ( ! Video_Comments_REST::verify_upload_token( $upload_id, $token ) ) {
+		if ( ! $authorized && ! Video_Comments_REST::verify_upload_token( $upload_id, $token ) ) {
 			return;
 		}
 
-		if ( ! Video_Comments_Settings::has_mux_credentials() ) {
-			return;
-		}
-
-		$provider = new Video_Comments_Provider_Mux(
-			Video_Comments_Settings::get_mux_token_id(),
-			Video_Comments_Settings::get_mux_token_secret()
-		);
-
-		$status = $provider->get_upload_status( $upload_id );
-		if ( is_wp_error( $status ) ) {
-			return;
-		}
-
-		$playback_id = (string) ( $status['playback_id'] ?? '' );
-		$asset_id    = (string) ( $status['asset_id'] ?? '' );
+		$status = $authorized ? self::$authorized_uploads[ $upload_id ] : $this->resolve_upload_status( $upload_id );
 
 		// Nothing to attach until Mux has produced a playable asset.
-		if ( '' === $playback_id || '' === $asset_id ) {
+		if ( ! self::is_ready_status( $status ) ) {
 			return;
 		}
 
-		// Format sanity on what Mux returned: IDs are alphanumeric + hyphens.
-		if ( ! preg_match( '/^[A-Za-z0-9\-]+$/', $playback_id ) || ! preg_match( '/^[A-Za-z0-9\-]+$/', $asset_id ) ) {
+		$playback_id = (string) $status['playback_id'];
+		$asset_id    = (string) $status['asset_id'];
+
+		// One asset belongs to one comment. Two requests racing on the same token
+		// could both pass verification before either retires it; the second one
+		// must not attach the same video (deleting either comment would then
+		// delete the shared asset).
+		if ( Video_Comments_Cleanup::asset_in_use( $asset_id ) ) {
 			return;
 		}
 
@@ -188,6 +242,226 @@ class Video_Comments_Comment_Meta {
 		// off the orphan sweep's list.
 		Video_Comments_REST::forget_upload( $upload_id );
 		Video_Comments_Cleanup::forget_pending_upload( $upload_id );
+	}
+
+	// -------------------------------------------------------------------------
+	// Video-only comments (empty body, video attached)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Hook the video-only overrides for the classic comment-form submission only.
+	 *
+	 * Runs on pre_comment_on_post, which wp_handle_comment_submission() fires after
+	 * trimming the comment text and before applying allow_empty_comment.
+	 *
+	 * @param int $comment_post_id Post being commented on (unused).
+	 */
+	public function register_form_submission_hooks( int $comment_post_id ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- required by the pre_comment_on_post hook.
+		add_filter( 'allow_empty_comment', [ $this, 'allow_video_only_comment' ], 10, 2 );
+		add_filter( 'duplicate_comment_id', [ $this, 'skip_duplicate_check_for_video_only' ], 10, 2 );
+	}
+
+	/**
+	 * Let a comment with no text through when it carries a finished video upload
+	 * that the submitter owns.
+	 *
+	 * Order matters: every cheap check (settings, nonce, token) runs before the
+	 * developer filter, and the filter runs before the Mux lookup, so a vetoing
+	 * site and a replayed or forged submission never cost a network request.
+	 *
+	 * @param bool                $allow       Whether core already allows the empty comment.
+	 * @param array<string,mixed> $commentdata Core's comment data (eight keys at this point).
+	 * @return bool
+	 */
+	public function allow_video_only_comment( $allow, array $commentdata ): bool {
+		if ( $allow ) {
+			return true;
+		}
+
+		// Core applies this filter on every submission, not only empty ones.
+		$content = $commentdata['comment_content'] ?? '';
+		if ( ! is_string( $content ) || '' !== trim( $content ) ) {
+			return false;
+		}
+
+		if ( ! Video_Comments_Settings::is_enabled() ) {
+			return false;
+		}
+
+		if ( ! is_user_logged_in() && ! Video_Comments_Settings::allow_guests() ) {
+			return false;
+		}
+
+		if ( ! self::form_nonce_is_valid() ) {
+			return false;
+		}
+
+		$upload_id = self::posted_field( self::FORM_FIELD_UPLOAD );
+		$token     = self::posted_field( self::FORM_FIELD_TOKEN );
+
+		if ( '' === $upload_id || '' === $token ) {
+			return false;
+		}
+
+		if ( ! Video_Comments_REST::verify_upload_token( $upload_id, $token ) ) {
+			return false;
+		}
+
+		if ( ! Video_Comments_Settings::has_mux_credentials() ) {
+			return false;
+		}
+
+		/**
+		 * Filter whether a comment may consist of a video alone, with no text.
+		 *
+		 * Applied on submission before the upload is checked with Mux, and again
+		 * when the comment form renders (with an empty $commentdata) to decide
+		 * whether the browser may relax the comment field's required attribute.
+		 *
+		 * @since 1.2.0
+		 *
+		 * @param bool                $allow       Default true.
+		 * @param array<string,mixed> $commentdata Core's comment data on submission; empty at render time.
+		 */
+		if ( ! apply_filters( 'video_comments_allow_video_only', true, $commentdata ) ) {
+			return false;
+		}
+
+		$status = $this->resolve_upload_status( $upload_id );
+		if ( ! self::is_ready_status( $status ) ) {
+			return false;
+		}
+
+		// The video is the whole comment, so an asset that already belongs to
+		// another comment cannot carry a new empty one (see the same guard in
+		// save_comment_video_meta()).
+		if ( Video_Comments_Cleanup::asset_in_use( (string) $status['asset_id'] ) ) {
+			return false;
+		}
+
+		self::$authorized_uploads[ $upload_id ] = $status;
+
+		return true;
+	}
+
+	/**
+	 * Skip core's duplicate check for an empty-body comment whose upload was
+	 * authorised in this request. Two empty bodies by the same author on the same
+	 * post always match, so without this a second video comment fails with 409.
+	 * Comments with text keep the normal protection.
+	 *
+	 * @param int                 $dupe_id     Comment ID core identified as a duplicate.
+	 * @param array<string,mixed> $commentdata Comment data (includes the keys added by preprocess_comment).
+	 * @return int 0 to proceed, or the duplicate ID to reject.
+	 */
+	public function skip_duplicate_check_for_video_only( $dupe_id, array $commentdata ) {
+		$content   = $commentdata['comment_content'] ?? '';
+		$upload_id = (string) ( $commentdata['_vc_upload_id'] ?? '' );
+
+		if ( is_string( $content ) && '' === trim( $content ) && '' !== $upload_id && isset( self::$authorized_uploads[ $upload_id ] ) ) {
+			return 0;
+		}
+
+		return $dupe_id;
+	}
+
+	/**
+	 * Resolve an upload's status with Mux once per request, serving a ready
+	 * status from a short-lived transient when it was resolved recently.
+	 *
+	 * @param string $upload_id Mux upload ID.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	private function resolve_upload_status( string $upload_id ) {
+		if ( isset( self::$resolved_uploads[ $upload_id ] ) ) {
+			return self::$resolved_uploads[ $upload_id ];
+		}
+
+		$cache_key = self::READY_CACHE_PREFIX . md5( $upload_id );
+		$cached    = get_transient( $cache_key );
+		if ( is_array( $cached ) && self::is_ready_status( $cached ) ) {
+			self::$resolved_uploads[ $upload_id ] = $cached;
+			return $cached;
+		}
+
+		if ( ! Video_Comments_Settings::has_mux_credentials() ) {
+			$status = new WP_Error( 'vc_no_credentials', __( 'Video uploads are not available at this time.', 'video-comments' ) );
+		} else {
+			$provider = new Video_Comments_Provider_Mux(
+				Video_Comments_Settings::get_mux_token_id(),
+				Video_Comments_Settings::get_mux_token_secret()
+			);
+			$status   = $provider->get_upload_status( $upload_id );
+		}
+
+		self::$resolved_uploads[ $upload_id ] = $status;
+
+		if ( self::is_ready_status( $status ) ) {
+			set_transient( $cache_key, $status, self::READY_CACHE_TTL );
+		}
+
+		return $status;
+	}
+
+	/**
+	 * Whether a resolved status describes a playable asset with well-formed IDs.
+	 *
+	 * @param array<string,mixed>|WP_Error|mixed $status Result of resolve_upload_status().
+	 */
+	private static function is_ready_status( $status ): bool {
+		if ( ! is_array( $status ) || 'ready' !== ( $status['status'] ?? '' ) ) {
+			return false;
+		}
+
+		$playback_id = $status['playback_id'] ?? '';
+		$asset_id    = $status['asset_id'] ?? '';
+
+		return is_string( $playback_id ) && is_string( $asset_id )
+			&& 1 === preg_match( self::ID_PATTERN, $playback_id )
+			&& 1 === preg_match( self::ID_PATTERN, $asset_id );
+	}
+
+	// -------------------------------------------------------------------------
+	// Notification emails
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Add a video line to the post-author notification (wp_notify_postauthor()).
+	 *
+	 * @param string     $message    Email body.
+	 * @param int|string $comment_id Comment ID.
+	 * @return string
+	 */
+	public function append_video_notice_to_author_email( $message, $comment_id ): string {
+		return $this->append_video_notice( (string) $message, (int) $comment_id, get_comment_link( (int) $comment_id ) );
+	}
+
+	/**
+	 * Add a video line to the moderation email (wp_notify_moderator()). The comment
+	 * is not public yet, so link to the edit screen the way core's own lines do.
+	 *
+	 * @param string     $message    Email body.
+	 * @param int|string $comment_id Comment ID.
+	 * @return string
+	 */
+	public function append_video_notice_to_moderation_email( $message, $comment_id ): string {
+		return $this->append_video_notice( (string) $message, (int) $comment_id, admin_url( 'comment.php?action=editcomment&c=' . (int) $comment_id ) );
+	}
+
+	/**
+	 * Append the video line when the comment has one. Emails are plain text.
+	 *
+	 * @param string $message    Email body.
+	 * @param int    $comment_id Comment ID.
+	 * @param string $link       Where the recipient can watch the video.
+	 */
+	private function append_video_notice( string $message, int $comment_id, string $link ): string {
+		if ( '' === self::get_playback_id( $comment_id ) ) {
+			return $message;
+		}
+
+		/* translators: %s: link to the comment */
+		return $message . sprintf( __( 'This comment includes a video: %s', 'video-comments' ), $link ) . "\r\n\r\n";
 	}
 
 	// -------------------------------------------------------------------------
@@ -302,7 +576,7 @@ class Video_Comments_Comment_Meta {
 			return;
 		}
 
-		if ( ! preg_match( '/^[A-Za-z0-9\-]+$/', $playback_id ) ) {
+		if ( ! preg_match( self::ID_PATTERN, $playback_id ) ) {
 			return;
 		}
 

@@ -14,7 +14,7 @@ Adds a video upload field to the comment form. Videos go straight to Mux — Wor
 
 Adds a video field to the standard WordPress comment form. The file uploads directly from the browser to [Mux](https://www.mux.com/), so it never passes through your server. Once Mux is done processing, the playback ID gets saved with the comment and a `<mux-player>` shows up below the comment text.
 
-The submit button is disabled until the video is ready, so comments can't be posted with a half-processed video attached.
+The submit button is disabled until the video is ready, so comments can't be posted with a half-processed video attached. Once it is ready, the comment text is optional: a comment can be just a video.
 
 Videos are tied to their comment — if a comment is held for moderation the video won't show either. No separate moderation queue.
 
@@ -85,6 +85,10 @@ Make sure your theme calls `wp_footer()`, your Mux credentials are saved, and no
     return $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $ip;
 } );`
 
+**`video_comments_allow_video_only`** -- require comment text even when a video is attached. Runs when the comment form renders (with empty comment data) and again on submission:
+
+`add_filter( 'video_comments_allow_video_only', '__return_false' );`
+
 == Screenshots ==
 
 1. Video uploader on the comment form.
@@ -92,6 +96,13 @@ Make sure your theme calls `wp_footer()`, your Mux credentials are saved, and no
 3. Settings page under Settings → Video Comments.
 
 == Changelog ==
+
+= 1.2.0 =
+* Add: A comment can be just a video. Once the upload is ready the text box becomes optional, and WordPress accepts the empty comment when the video checks out. Text is still required for comments made through the REST API or XML-RPC.
+* Add: `video_comments_allow_video_only` filter to keep requiring text.
+* Add: Video-only comments show as "[Video comment]" in the admin Comments list, linking to the edit screen, and the new-comment and moderation emails say when a comment includes a video.
+* Fix: Video-only comments render in block themes, whose Comment Content block skips empty comments.
+* Change: The video is attached to the comment before WordPress sends its notification emails.
 
 = 1.1.1 =
 * Fix: Automatic updates from GitHub releases always download the plugin zip. Version 1.1.0 could pick readme.txt as the update package, so sites on 1.1.0 need to install this version by hand once.

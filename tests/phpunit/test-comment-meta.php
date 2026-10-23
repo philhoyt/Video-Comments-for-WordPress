@@ -22,6 +22,12 @@ class Test_Video_Comments_Comment_Meta extends WP_UnitTestCase {
 		$this->meta = Video_Comments_Comment_Meta::get_instance();
 	}
 
+	public function tear_down(): void {
+		// The per-request Mux status memo is static and would otherwise leak between tests.
+		Video_Comments_Comment_Meta::reset_request_state();
+		parent::tear_down();
+	}
+
 	private function issue_token( string $upload_id ): string {
 		$m = new ReflectionMethod( Video_Comments_REST::class, 'issue_upload_token' );
 		$m->setAccessible( true );
