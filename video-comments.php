@@ -29,7 +29,8 @@ define( 'VIDEO_COMMENTS_PLUGIN_FILE', __FILE__ );
 define( 'VIDEO_COMMENTS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'VIDEO_COMMENTS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
-// Plugin Update Checker: serves updates from GitHub releases (video-comments.zip asset).
+// Plugin Update Checker: serves updates from GitHub releases. Only the .zip release
+// asset is a valid package; without the pattern PUC takes whichever asset is listed first.
 require_once VIDEO_COMMENTS_PLUGIN_DIR . 'lib/plugin-update-checker/plugin-update-checker.php';
 
 $video_comments_update_checker     = PucFactory::buildUpdateChecker(
@@ -39,7 +40,7 @@ $video_comments_update_checker     = PucFactory::buildUpdateChecker(
 );
 $video_comments_update_checker_api = $video_comments_update_checker->getVcsApi();
 if ( method_exists( $video_comments_update_checker_api, 'enableReleaseAssets' ) ) {
-	$video_comments_update_checker_api->enableReleaseAssets();
+	$video_comments_update_checker_api->enableReleaseAssets( '/\.zip$/i' );
 }
 
 /**
