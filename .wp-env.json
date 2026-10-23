@@ -1,5 +1,10 @@
 {
-    "plugins": [ "." ],
+    "core": null,
     "phpVersion": "8.3",
-    "core": null
+    "mappings": {
+        "wp-content/plugins/video-comments": "."
+    },
+    "lifecycleScripts": {
+        "afterStart": "npx wp-env run cli wp plugin activate video-comments && npx wp-env run tests-cli wp plugin activate video-comments"
+    }
 }
