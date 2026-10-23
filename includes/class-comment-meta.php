@@ -109,6 +109,11 @@ class Video_Comments_Comment_Meta {
 		// could not be attached there; scoping the hooks keeps them rejected.
 		add_action( 'pre_comment_on_post', [ $this, 'register_form_submission_hooks' ] );
 
+		// A video-only comment has an empty "Comment:" line in core's emails; say
+		// there is a video and where to see it.
+		add_filter( 'comment_notification_text', [ $this, 'append_video_notice_to_author_email' ], 10, 2 );
+		add_filter( 'comment_moderation_text', [ $this, 'append_video_notice_to_moderation_email' ], 10, 2 );
+
 		// Admin comment edit page.
 		add_action( 'add_meta_boxes_comment', [ $this, 'add_comment_meta_box' ] );
 		add_action( 'edit_comment', [ $this, 'save_admin_comment_meta' ] );
@@ -407,6 +412,49 @@ class Video_Comments_Comment_Meta {
 		return is_string( $playback_id ) && is_string( $asset_id )
 			&& 1 === preg_match( self::ID_PATTERN, $playback_id )
 			&& 1 === preg_match( self::ID_PATTERN, $asset_id );
+	}
+
+	// -------------------------------------------------------------------------
+	// Notification emails
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Add a video line to the post-author notification (wp_notify_postauthor()).
+	 *
+	 * @param string     $message    Email body.
+	 * @param int|string $comment_id Comment ID.
+	 * @return string
+	 */
+	public function append_video_notice_to_author_email( $message, $comment_id ): string {
+		return $this->append_video_notice( (string) $message, (int) $comment_id, get_comment_link( (int) $comment_id ) );
+	}
+
+	/**
+	 * Add a video line to the moderation email (wp_notify_moderator()). The comment
+	 * is not public yet, so link to the edit screen the way core's own lines do.
+	 *
+	 * @param string     $message    Email body.
+	 * @param int|string $comment_id Comment ID.
+	 * @return string
+	 */
+	public function append_video_notice_to_moderation_email( $message, $comment_id ): string {
+		return $this->append_video_notice( (string) $message, (int) $comment_id, admin_url( 'comment.php?action=editcomment&c=' . (int) $comment_id ) );
+	}
+
+	/**
+	 * Append the video line when the comment has one. Emails are plain text.
+	 *
+	 * @param string $message    Email body.
+	 * @param int    $comment_id Comment ID.
+	 * @param string $link       Where the recipient can watch the video.
+	 */
+	private function append_video_notice( string $message, int $comment_id, string $link ): string {
+		if ( '' === self::get_playback_id( $comment_id ) ) {
+			return $message;
+		}
+
+		/* translators: %s: link to the comment */
+		return $message . sprintf( __( 'This comment includes a video: %s', 'video-comments' ), $link ) . "\r\n\r\n";
 	}
 
 	// -------------------------------------------------------------------------
