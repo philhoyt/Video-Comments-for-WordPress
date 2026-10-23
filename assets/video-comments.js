@@ -64,8 +64,8 @@
 		uploadId: '', // Mux upload_id from WP REST
 		uploadToken: '', // Per-upload secret from WP REST; proves ownership
 		pollTimer: null, // setInterval handle for status polling
-		dotTimer: null, // setInterval handle for animated dots
 		xhr: null, // Active XHR for cancel support
+		generation: 0, // Bumped on clear/reselect so stale async work bails out
 	};
 
 	// -------------------------------------------------------------------------
@@ -152,6 +152,12 @@
 	 * @param {File} file
 	 */
 	function handleFileSelection( file ) {
+		// Picking a new file while an upload is in flight or finished replaces it:
+		// cancel and clean up the old one first so nothing stale lands in the form.
+		if ( state.uploading || state.processing || state.uploadId ) {
+			onClear();
+		}
+
 		// Type check.
 		if ( ! file.type.startsWith( 'video/' ) ) {
 			setStatus( i18n.invalidType || 'Please select a video file.', 'error' );
@@ -197,6 +203,9 @@
 	}
 
 	function onClear() {
+		// Invalidate any request that is still in flight for the old upload.
+		state.generation++;
+
 		if ( state.xhr ) {
 			state.xhr.abort();
 		}
@@ -228,7 +237,7 @@
 	function onFormSubmit( e ) {
 		if ( state.uploading || state.processing ) {
 			e.preventDefault();
-			setStatus( i18n.uploading || 'Upload in progress — please wait.', 'info' );
+			setStatus( i18n.pleaseWait || 'Upload in progress. Please wait.', 'info' );
 		}
 	}
 
@@ -245,6 +254,8 @@
 	 * @param {File} file
 	 */
 	async function startUpload( file ) {
+		const gen = state.generation;
+
 		lockForm( true );
 		state.uploading = true;
 		if ( uploadBtn ) {
@@ -256,11 +267,17 @@
 		try {
 			// Step 1: get direct upload URL.
 			const uploadData = await requestDirectUploadUrl( file );
+			if ( gen !== state.generation ) {
+				return; // Cleared while waiting; the server will sweep the unused upload.
+			}
 			state.uploadId = uploadData.upload_id;
 			state.uploadToken = uploadData.upload_token || '';
 
 			// Step 2: upload file directly to Mux.
 			await uploadToMux( uploadData.upload_url, file );
+			if ( gen !== state.generation ) {
+				return;
+			}
 
 			state.uploading = false;
 			showProgress( false );
@@ -268,8 +285,11 @@
 			startProcessingAnimation();
 
 			// Step 3: poll for playback_id.
-			await pollForPlaybackId( state.uploadId );
+			await pollForPlaybackId( state.uploadId, gen );
 		} catch ( err ) {
+			if ( gen !== state.generation ) {
+				return; // Stale failure (e.g. the abort we triggered ourselves); UI already reset.
+			}
 			state.uploading = false;
 			state.processing = false;
 			showProgress( false );
@@ -352,7 +372,7 @@
 
 			xhr.addEventListener( 'abort', function() {
 				state.xhr = null;
-				reject( new Error( 'Upload cancelled.' ) );
+				reject( new Error( i18n.cancelled || 'Upload cancelled.' ) );
 			} );
 
 			xhr.send( file );
@@ -363,9 +383,11 @@
 	 * Poll WP REST GET /mux/upload-status until we get a playback_id.
 	 *
 	 * @param {string} uploadId
+	 * @param {number} gen      Generation this poll belongs to; results for an
+	 *                          older generation are discarded.
 	 * @return {Promise<void>}
 	 */
-	function pollForPlaybackId( uploadId ) {
+	function pollForPlaybackId( uploadId, gen ) {
 		return new Promise( function( resolve, reject ) {
 			let attempts = 0;
 			const maxAttempts = 60; // 60 × 3 s = 3 min timeout.
@@ -377,7 +399,7 @@
 					clearInterval( state.pollTimer );
 					state.processing = false;
 					lockForm( false );
-					reject( new Error( 'Timed out waiting for video to process.' ) );
+					reject( new Error( i18n.timeout || 'Timed out waiting for the video to process. Please try again.' ) );
 					return;
 				}
 
@@ -392,6 +414,10 @@
 						headers: { 'X-WP-Nonce': cfg.restNonce },
 					} );
 					const json = await res.json();
+
+					if ( gen !== state.generation ) {
+						return; // Cleared while this request was in flight.
+					}
 
 					if ( ! res.ok ) {
 						// Non-fatal: keep polling unless explicitly errored.
@@ -425,7 +451,7 @@
 						state.processing = false;
 						stopProcessingAnimation();
 						lockForm( false );
-						reject( new Error( i18n.uploadError || 'Video processing failed.' ) );
+						reject( new Error( i18n.processingFailed || 'Video processing failed. Please try another file.' ) );
 					}
 					// 'waiting' | 'asset_created' → keep polling.
 				} catch {
@@ -542,25 +568,21 @@
 	}
 
 	/**
-	 * Animate the processing status with cycling dots so the user knows
-	 * something is happening during what can be a 10–30 second wait.
+	 * Show the processing status with a CSS spinner. The live region's text is
+	 * written once; the spinner is a ::after pseudo-element, so screen readers
+	 * are not re-announced several times a second.
 	 */
 	function startProcessingAnimation() {
-		const frames = [ '-', '\\', '|', '/' ];
-		let frame = 0;
-		const base = i18n.processing || 'Processing video';
-
-		setStatus( base + '  ' + frames[ 0 ], 'info' );
-
-		state.dotTimer = setInterval( function() {
-			frame = ( frame + 1 ) % frames.length;
-			setStatus( base + '  ' + frames[ frame ], 'info' );
-		}, 120 );
+		setStatus( i18n.processing || 'Processing video…', 'info' );
+		if ( statusEl ) {
+			statusEl.classList.add( 'vc-status--processing' );
+		}
 	}
 
 	function stopProcessingAnimation() {
-		clearInterval( state.dotTimer );
-		state.dotTimer = null;
+		if ( statusEl ) {
+			statusEl.classList.remove( 'vc-status--processing' );
+		}
 	}
 
 	/**
@@ -605,9 +627,9 @@
 	 */
 	function formatBytes( bytes ) {
 		if ( bytes < 1024 * 1024 ) {
-			return ( bytes / 1024 ).toFixed( 1 ) + ' KB';
+			return ( i18n.kb || '%s KB' ).replace( '%s', ( bytes / 1024 ).toFixed( 1 ) );
 		}
-		return ( bytes / ( 1024 * 1024 ) ).toFixed( 1 ) + ' MB';
+		return ( i18n.mb || '%s MB' ).replace( '%s', ( bytes / ( 1024 * 1024 ) ).toFixed( 1 ) );
 	}
 
 	// -------------------------------------------------------------------------

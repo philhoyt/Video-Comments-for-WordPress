@@ -24,10 +24,11 @@ class Video_Comments_Render {
 	private static ?Video_Comments_Render $instance = null;
 
 	/**
-	 * CDN URL for the official Mux player element.
+	 * CDN URL for the official Mux player element, pinned to a major version so
+	 * a breaking release cannot land on the site unannounced.
 	 * Filterable via 'video_comments_mux_player_src'.
 	 */
-	private const MUX_PLAYER_CDN = 'https://cdn.jsdelivr.net/npm/@mux/mux-player';
+	public const MUX_PLAYER_CDN = 'https://cdn.jsdelivr.net/npm/@mux/mux-player@3';
 
 	/** Singleton accessor. */
 	public static function get_instance(): self {
@@ -99,28 +100,36 @@ class Video_Comments_Render {
 			'window.vcSettings = ' . wp_json_encode(
 				[
 					'restUrl'        => esc_url_raw( rest_url( Video_Comments_REST::NAMESPACE ) ),
-					'nonce'          => wp_create_nonce( 'vc_upload_nonce' ),
+					'nonce'          => wp_create_nonce( 'video_comments_upload' ),
 					'restNonce'      => wp_create_nonce( 'wp_rest' ),
 					'maxSizeMb'      => Video_Comments_Settings::max_size_mb(),
 					'hasCredentials' => Video_Comments_Settings::has_mux_credentials(),
 					'allowGuests'    => Video_Comments_Settings::allow_guests(),
 					'isLoggedIn'     => is_user_logged_in(),
 					'i18n'           => [
-						'selectVideo'    => __( 'Select video', 'video-comments' ),
-						'uploading'      => __( 'Uploading…', 'video-comments' ),
-						'uploadComplete' => __( 'Upload complete', 'video-comments' ),
-						'uploadError'    => __( 'Upload failed. Please try again.', 'video-comments' ),
-						'processing'     => __( 'Processing video…', 'video-comments' ),
-						'ready'          => __( 'Video ready', 'video-comments' ),
-						'clearVideo'     => __( 'Remove video', 'video-comments' ),
-						'noCredentials'  => __( 'Video uploads are not available at this time.', 'video-comments' ),
-						'guestsDisabled' => __( 'Please log in to attach a video.', 'video-comments' ),
-						'fileTooLarge'   => sprintf(
+						'selectVideo'      => __( 'Select video', 'video-comments' ),
+						'uploading'        => __( 'Uploading…', 'video-comments' ),
+						'uploadComplete'   => __( 'Upload complete', 'video-comments' ),
+						'uploadError'      => __( 'Upload failed. Please try again.', 'video-comments' ),
+						'processing'       => __( 'Processing video…', 'video-comments' ),
+						'ready'            => __( 'Video ready', 'video-comments' ),
+						'clearVideo'       => __( 'Remove video', 'video-comments' ),
+						'noCredentials'    => __( 'Video uploads are not available at this time.', 'video-comments' ),
+						'guestsDisabled'   => __( 'Please log in to attach a video.', 'video-comments' ),
+						'fileTooLarge'     => sprintf(
 							/* translators: %s: max size in MB */
 							__( 'File is too large. Maximum size is %s MB.', 'video-comments' ),
 							Video_Comments_Settings::max_size_mb()
 						),
-						'invalidType'    => __( 'Please select a video file.', 'video-comments' ),
+						'invalidType'      => __( 'Please select a video file.', 'video-comments' ),
+						'cancelled'        => __( 'Upload cancelled.', 'video-comments' ),
+						'timeout'          => __( 'Timed out waiting for the video to process. Please try again.', 'video-comments' ),
+						'processingFailed' => __( 'Video processing failed. Please try another file.', 'video-comments' ),
+						'pleaseWait'       => __( 'Upload in progress. Please wait.', 'video-comments' ),
+						/* translators: %s: file size in kilobytes */
+						'kb'               => __( '%s KB', 'video-comments' ),
+						/* translators: %s: file size in megabytes */
+						'mb'               => __( '%s MB', 'video-comments' ),
 					],
 				]
 			) . ';',
@@ -150,7 +159,7 @@ class Video_Comments_Render {
 		 * Filter the Mux player script URL.
 		 * Return false to skip loading (e.g. if the theme already loads it).
 		 *
-		 * @param string $url CDN URL.
+		 * @param string|false $url CDN URL, or false to skip loading the player.
 		 */
 		$src = apply_filters( 'video_comments_mux_player_src', self::MUX_PLAYER_CDN );
 
@@ -244,7 +253,7 @@ class Video_Comments_Render {
 				</div>
 
 				<div id="vc-progress-wrap" class="vc-progress-wrap" style="display:none" aria-hidden="true">
-					<progress id="vc-progress" class="vc-progress" max="100" value="0"></progress>
+					<progress id="vc-progress" class="vc-progress" max="100" value="0" aria-label="<?php esc_attr_e( 'Upload progress', 'video-comments' ); ?>"></progress>
 					<span id="vc-progress-pct" class="vc-progress-pct">0%</span>
 				</div>
 

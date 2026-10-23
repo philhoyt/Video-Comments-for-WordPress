@@ -25,7 +25,7 @@ class Video_Comments_REST {
 	public const NAMESPACE = 'video-comments/v1';
 
 	/** Transient prefix for rate limiting. */
-	private const RATE_LIMIT_PREFIX = 'vc_rl_';
+	private const RATE_LIMIT_PREFIX = 'video_comments_rl_';
 
 	/** Max requests per window per IP. */
 	private const RATE_LIMIT_MAX = 10;
@@ -34,16 +34,19 @@ class Video_Comments_REST {
 	private const RATE_LIMIT_WINDOW = 60;
 
 	/** Transient prefix for the status-polling rate limiter. */
-	private const POLL_RATE_LIMIT_PREFIX = 'vc_rlp_';
+	private const POLL_RATE_LIMIT_PREFIX = 'video_comments_rlp_';
 
 	/** Max status/delete requests per window per IP (the client polls every 3 s). */
 	private const POLL_RATE_LIMIT_MAX = 60;
 
 	/** Transient prefix for per-upload ownership records. */
-	private const UPLOAD_RECORD_PREFIX = 'vc_upload_';
+	private const UPLOAD_RECORD_PREFIX = 'video_comments_upload_';
 
 	/** Lifetime of an ownership record: covers uploading, processing and writing the comment. */
 	private const UPLOAD_RECORD_TTL = 43200; // 12 hours.
+
+	/** Object-cache group for rate-limit counters when a persistent cache is available. */
+	private const CACHE_GROUP = 'video_comments';
 
 	/**
 	 * Singleton accessor.
@@ -182,7 +185,7 @@ class Video_Comments_REST {
 
 		// Nonce verification.
 		$nonce = $request->get_param( 'nonce' );
-		if ( ! $nonce || false === wp_verify_nonce( $nonce, 'vc_upload_nonce' ) ) {
+		if ( ! $nonce || false === wp_verify_nonce( $nonce, 'video_comments_upload' ) ) {
 			return new WP_Error(
 				'vc_bad_nonce',
 				__( 'Security check failed. Please refresh the page.', 'video-comments' ),
@@ -305,6 +308,9 @@ class Video_Comments_REST {
 		// to attach it to a comment, and it is only ever returned to the caller who created it.
 		$result['upload_token'] = self::issue_upload_token( (string) $result['upload_id'] );
 
+		// Remember the upload so the daily sweep can remove its asset if no comment ever claims it.
+		Video_Comments_Cleanup::record_pending_upload( (string) $result['upload_id'] );
+
 		return rest_ensure_response( $result );
 	}
 
@@ -381,6 +387,7 @@ class Video_Comments_REST {
 		if ( '' === $asset_id ) {
 			// Upload exists but no asset was created yet — just forget the ownership record.
 			self::forget_upload( $upload_id );
+			Video_Comments_Cleanup::forget_pending_upload( $upload_id );
 			return rest_ensure_response( [ 'deleted' => false ] );
 		}
 
@@ -391,6 +398,7 @@ class Video_Comments_REST {
 		}
 
 		self::forget_upload( $upload_id );
+		Video_Comments_Cleanup::forget_pending_upload( $upload_id );
 		return rest_ensure_response( [ 'deleted' => true ] );
 	}
 
@@ -467,19 +475,28 @@ class Video_Comments_REST {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Simple transient-based rate limiter keyed by client IP.
+	 * Rate limiter keyed by client IP: at most $max requests per window.
 	 *
-	 * @param string $prefix Transient prefix identifying the limiter bucket.
+	 * With a persistent object cache the counter is incremented atomically
+	 * (add + incr). Without one it falls back to a transient read-modify-write,
+	 * which is good enough on a single server with no shared cache.
+	 *
+	 * @param string $prefix Key prefix identifying the limiter bucket.
 	 * @param int    $max    Max requests per window.
 	 * @return true|WP_Error
 	 */
 	private function check_rate_limit( string $prefix, int $max ) {
-		$ip  = $this->get_client_ip();
-		$key = $prefix . md5( $ip );
+		$key = $prefix . md5( $this->get_client_ip() );
 
-		$count = (int) get_transient( $key );
+		if ( wp_using_ext_object_cache() ) {
+			wp_cache_add( $key, 0, self::CACHE_GROUP, self::RATE_LIMIT_WINDOW );
+			$count = (int) wp_cache_incr( $key, 1, self::CACHE_GROUP );
+		} else {
+			$count = (int) get_transient( $key ) + 1;
+			set_transient( $key, $count, self::RATE_LIMIT_WINDOW );
+		}
 
-		if ( $count >= $max ) {
+		if ( $count > $max ) {
 			return new WP_Error(
 				'vc_rate_limited',
 				__( 'Too many requests. Please wait a moment and try again.', 'video-comments' ),
@@ -487,22 +504,25 @@ class Video_Comments_REST {
 			);
 		}
 
-		if ( 0 === $count ) {
-			set_transient( $key, 1, self::RATE_LIMIT_WINDOW );
-		} else {
-			set_transient( $key, $count + 1, self::RATE_LIMIT_WINDOW );
-		}
-
 		return true;
 	}
 
 	/**
-	 * Retrieve the client's real IP address.
-	 * Trusts standard headers only; does not blindly trust X-Forwarded-For.
+	 * Retrieve the client IP used for rate limiting.
+	 *
+	 * REMOTE_ADDR is the only header that cannot be spoofed by the client, so it
+	 * is the default. Behind a trusted reverse proxy or CDN every visitor shares
+	 * the proxy's address; use the filter to substitute the real client address
+	 * from the header your proxy sets.
 	 */
 	private function get_client_ip(): string {
-		// Use REMOTE_ADDR as the authoritative source.
-		// Reverse-proxy setups may need to adjust this.
-		return isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '0.0.0.0';
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '0.0.0.0';
+
+		/**
+		 * Filter the client IP address used to key the rate limiter.
+		 *
+		 * @param string $ip REMOTE_ADDR by default.
+		 */
+		return (string) apply_filters( 'video_comments_client_ip', $ip );
 	}
 }

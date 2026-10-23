@@ -5,7 +5,7 @@
  * Description:       Extends WordPress comments to support uploading and displaying a video per comment via Mux.
  * Version:           1.0.0
  * Requires at least: 6.0
- * Tested up to:      6.9
+ * Tested up to:      7.1
  * Requires PHP:      7.4
  * Author:            philhoyt
  * Author URI:        https://philhoyt.com/
@@ -77,18 +77,23 @@ function video_comments_plugin_action_links( array $links ): array {
 add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'video_comments_plugin_action_links' );
 
 /**
- * Activation hook — no DB changes needed in v1.
+ * Activation hook: schedule the daily sweep of abandoned uploads.
+ *
+ * The plugins_loaded hook has already fired in the activation request, so the plugin
+ * classes are not loaded here; use the hook name directly.
  */
 function video_comments_activate(): void {
-	// Flush rewrite rules in case REST routes need it (usually not, but safe).
-	flush_rewrite_rules();
+	if ( ! wp_next_scheduled( 'video_comments_sweep_uploads' ) ) {
+		wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'video_comments_sweep_uploads' );
+	}
 }
 register_activation_hook( __FILE__, 'video_comments_activate' );
 
 /**
- * Deactivation hook.
+ * Deactivation hook: remove the plugin's scheduled events.
  */
 function video_comments_deactivate(): void {
-	flush_rewrite_rules();
+	wp_unschedule_hook( 'video_comments_sweep_uploads' );
+	wp_unschedule_hook( 'video_comments_delete_asset' );
 }
 register_deactivation_hook( __FILE__, 'video_comments_deactivate' );
