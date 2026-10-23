@@ -230,19 +230,20 @@ class Video_Comments_Render {
 			<?php endif; ?>
 
 			<?php
-			// Hidden field that carries the playback_id with the comment form POST.
+			// Hidden fields carry the upload ID and its token with the comment form POST.
+			// The playback and asset IDs are resolved from Mux server-side at save time.
 			echo Video_Comments_Comment_Meta::nonce_field_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- nonce_field_html() returns pre-escaped HTML.
 			?>
 			<input
 				type="hidden"
-				id="vc-playback-id"
-				name="<?php echo esc_attr( Video_Comments_Comment_Meta::FORM_FIELD ); ?>"
+				id="vc-upload-id"
+				name="<?php echo esc_attr( Video_Comments_Comment_Meta::FORM_FIELD_UPLOAD ); ?>"
 				value=""
 			/>
 			<input
 				type="hidden"
-				id="vc-asset-id"
-				name="<?php echo esc_attr( Video_Comments_Comment_Meta::FORM_FIELD_ASSET ); ?>"
+				id="vc-upload-token"
+				name="<?php echo esc_attr( Video_Comments_Comment_Meta::FORM_FIELD_TOKEN ); ?>"
 				value=""
 			/>
 		</div>

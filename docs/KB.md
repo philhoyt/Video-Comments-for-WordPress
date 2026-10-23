@@ -6,7 +6,7 @@ Format: `topic — finding — source URL`
 
 ## WordPress
 
-- (none yet)
+- Nonces — `wp_create_nonce()` for a logged-out visitor hashes user 0 plus an empty session token, so every guest on the site shares one nonce value per 12-hour tick; a guest nonce proves "came from a page of this site", never "this visitor", and must not be used as an ownership key — https://developer.wordpress.org/reference/functions/wp_create_nonce/
 
 ## Block editor
 
