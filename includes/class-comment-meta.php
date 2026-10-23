@@ -205,7 +205,7 @@ class Video_Comments_Comment_Meta {
 		}
 
 		/** This filter is documented in class-render.php */
-		$src = apply_filters( 'video_comments_mux_player_src', 'https://cdn.jsdelivr.net/npm/@mux/mux-player' );
+		$src = apply_filters( 'video_comments_mux_player_src', Video_Comments_Render::MUX_PLAYER_CDN );
 		if ( $src ) {
 			wp_enqueue_script( 'mux-player', esc_url( $src ), [], null, true ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
 		}
