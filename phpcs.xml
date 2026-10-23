@@ -28,6 +28,20 @@
 		<exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
 	</rule>
 
+	<!-- Test code: docblocks are not required (exclude-pattern must be set per sniff, not per ruleset). -->
+	<rule ref="Generic.Commenting.DocComment">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Squiz.Commenting.FunctionComment">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Squiz.Commenting.VariableComment">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.NamingConventions.ValidVariableName">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+
 	<!-- Minimum WP version for deprecated function checks -->
 	<config name="minimum_wp_version" value="6.0"/>
 

@@ -60,6 +60,39 @@ jobs:
       - name: Static analysis (phpstan)
         run: composer analyse -- --no-progress
 
+  phpunit:
+    name: PHPUnit (wp-env)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer
+          coverage: none
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Start WordPress (wp-env)
+        run: npm run env:start
+
+      - name: Run PHPUnit
+        run: npm run test:php
+
   js:
     name: JavaScript and CSS
     runs-on: ubuntu-latest
