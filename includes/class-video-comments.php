@@ -46,6 +46,7 @@ final class Video_Comments {
 		Video_Comments_Comment_Meta::get_instance()->init();
 		Video_Comments_Render::get_instance()->init();
 		Video_Comments_Cleanup::get_instance()->init();
+		Video_Comments_Privacy::get_instance()->init();
 	}
 
 	/**
@@ -61,5 +62,6 @@ final class Video_Comments {
 		require_once $dir . 'class-comment-meta.php';
 		require_once $dir . 'class-render.php';
 		require_once $dir . 'class-cleanup.php';
+		require_once $dir . 'class-privacy.php';
 	}
 }
