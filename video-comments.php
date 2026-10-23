@@ -5,7 +5,7 @@
  * Description:       Extends WordPress comments to support uploading and displaying a video per comment via Mux.
  * Version:           1.0.0
  * Requires at least: 6.0
- * Tested up to:      6.9
+ * Tested up to:      7.1
  * Requires PHP:      7.4
  * Author:            philhoyt
  * Author URI:        https://philhoyt.com/

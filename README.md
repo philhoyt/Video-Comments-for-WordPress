@@ -7,7 +7,7 @@ Videos upload directly to [Mux](https://www.mux.com/).
 
 ## Requirements
 
-- WordPress 6.0+
+- WordPress 6.0+ (tested up to 7.1)
 - PHP 7.4+
 - A [Mux](https://dashboard.mux.com/) account
 
@@ -38,13 +38,21 @@ define( 'VIDEO_COMMENTS_MUX_TOKEN_SECRET', 'your-token-secret' );
 |---|---|---|
 | Enable Video Comments | On | Turns the uploader on or off sitewide. |
 | Allow Guests | On | Let non-logged-in users upload videos. |
-| Max Upload Size (MB) | 50 | Enforced client-side and server-side. |
+| Max Upload Size (MB) | 50 | Checked in the browser and against the size the browser reports when requesting an upload URL. The file goes straight to Mux, so a tampered client can bypass it; the per-IP rate limit is the real abuse guard. |
 
 ## How uploads work
 
 The uploader requests a short-lived upload URL from WordPress, then PUTs the file directly to Mux from the browser. WordPress also hands back a one-time token for that upload; only the browser that started the upload holds it, and it is required to poll the upload's status or remove it. Once the upload finishes, the page polls until Mux has processed the video. The comment form then submits the upload ID and its token, and WordPress looks the upload up in Mux and stores the playback ID it gets back in comment meta. Playback and asset IDs are never accepted from the browser, so a comment can only carry a video that was uploaded through this site.
 
 The submit button stays disabled until the video is fully ready, so there's no way to accidentally post a comment with a broken video attached.
+
+## Clean-up
+
+When a comment is permanently deleted, or an administrator clears its video, the Mux asset is deleted in the background by WP-Cron (with retries). Uploads that never become a comment are removed from Mux by a daily sweep once they are a day old. Deleting the plugin removes its settings, comment meta and scheduled events; videos already in your Mux account are left alone.
+
+## Privacy
+
+The plugin suggests policy text under **Settings → Privacy → Policy Guide**, exports a commenter's videos alongside their other personal data, and removes the videos (scheduling their deletion from Mux) when a commenter's data is erased through **Tools → Erase Personal Data**.
 
 ## Moderation
 
@@ -66,6 +74,14 @@ add_filter( 'video_comments_player_attrs', function ( $attrs, $playback_id ) {
     $attrs['muted'] = '';
     return $attrs;
 }, 10, 2 );
+```
+
+**`video_comments_client_ip`** — behind a reverse proxy or CDN, return the real visitor address so the upload rate limit is not shared by everyone behind the proxy:
+
+```php
+add_filter( 'video_comments_client_ip', function ( $ip ) {
+    return $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $ip;
+} );
 ```
 
 ## FAQ

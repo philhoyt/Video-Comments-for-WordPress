@@ -2,7 +2,7 @@
 Contributors: philhoyt
 Tags: comments, video, mux, upload, media
 Requires at least: 6.0
-Tested up to: 6.9
+Tested up to: 7.1
 Requires PHP: 7.4
 Stable tag: 1.0.0
 License: GPL-2.0-or-later
@@ -38,7 +38,7 @@ When the constants are present, the settings fields are hidden.
 
 * **Enable Video Comments** — turns the uploader on or off sitewide.
 * **Allow Guests** — lets non-logged-in users upload. On by default.
-* **Max Upload Size (MB)** — defaults to 50, checked on both client and server.
+* **Max Upload Size (MB)** — defaults to 50. Checked in the browser before uploading and against the size the browser reports when it asks for an upload URL. The file itself goes straight from the browser to Mux, so a tampered client can bypass this check; the per-IP rate limit on upload requests is the real guard against abuse.
 
 == Frequently Asked Questions ==
 
@@ -49,6 +49,14 @@ No. Approve or trash the comment and the video goes with it.
 = What formats are supported? =
 
 Whatever Mux accepts — MP4, MOV, WebM, MKV, AVI, etc. The plugin also checks the file extension before handing out an upload URL.
+
+= What happens to videos when a comment is deleted? =
+
+When a comment is permanently deleted, or an administrator clears its video, the Mux asset is deleted in the background by WP-Cron. Uploads that never become a comment are removed from Mux by a daily sweep once they are a day old.
+
+= Does the plugin work with the WordPress privacy tools? =
+
+Yes. It suggests privacy-policy text under Settings → Privacy, exports a commenter's videos with their personal data, and removes the videos (and schedules their deletion from Mux) when a commenter's data is erased.
 
 = Will this conflict with a caching plugin? =
 
@@ -70,6 +78,12 @@ Make sure your theme calls `wp_footer()`, your Mux credentials are saved, and no
     $attrs['muted'] = '';
     return $attrs;
 }, 10, 2 );`
+
+**`video_comments_client_ip`** — behind a reverse proxy or CDN, return the real visitor address so the upload rate limit is not shared by everyone behind the proxy:
+
+`add_filter( 'video_comments_client_ip', function ( $ip ) {
+    return $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $ip;
+} );`
 
 == Screenshots ==
 
