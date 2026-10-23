@@ -57,7 +57,9 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          # Only the zip: the update checker reads readme.txt from the repository at the
-          # tag, and a second asset makes it ambiguous which file is the package.
-          files: video-comments.zip
+          # readme.txt ships alongside the zip. The update checker is told the exact
+          # package name, so the extra asset cannot be mistaken for it.
+          files: |
+            video-comments.zip
+            readme.txt
           body_path: changelog_body.txt

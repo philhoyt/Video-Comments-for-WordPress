@@ -14,6 +14,7 @@ Format: `topic — finding — source URL`
 
 ## Third-party libraries
 
+- Plugin Update Checker — `enableReleaseAssets()` without a pattern takes the first release asset and GitHub lists assets by name, so `readme.txt` beats `video-comments.zip`; pass the exact package name (`'/^video-comments\.zip$/'`) and keep attaching readme.txt to releases (same approach as SocialFrame) — https://github.com/YahnisElsts/plugin-update-checker#github-integration
 - ESLint — `@wordpress/eslint-plugin` exports flat configs from v25; v28 peers `eslint ^9 || ^10` and `@wordpress/scripts` 37 pins `eslint ^10`, so the toolchain is on ESLint 10 (flat config only; `.eslintrc.js` is ignored and flat config never climbs parent directories, which fixes the worktree crash) — https://www.npmjs.com/package/@wordpress/eslint-plugin
 - ESLint — from v9 `no-unused-vars` defaults `caughtErrors` to `"all"`, so `catch ( err )` with an unused `err` is an error; use the optional catch binding `catch {` — https://eslint.org/docs/latest/rules/no-unused-vars
 
