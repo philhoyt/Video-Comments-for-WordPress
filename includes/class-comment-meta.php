@@ -184,8 +184,10 @@ class Video_Comments_Comment_Meta {
 		add_comment_meta( $comment_id, self::META_ASSET_ID, $asset_id, true );
 
 		// The upload now belongs to this comment; retire the token so it cannot be
-		// used to delete the asset through the REST API afterwards.
+		// used to delete the asset through the REST API afterwards, and take it
+		// off the orphan sweep's list.
 		Video_Comments_REST::forget_upload( $upload_id );
+		Video_Comments_Cleanup::forget_pending_upload( $upload_id );
 	}
 
 	// -------------------------------------------------------------------------
@@ -313,28 +315,22 @@ class Video_Comments_Comment_Meta {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Delete the Mux asset associated with a comment, if any.
+	 * Queue deletion of the Mux asset associated with a comment, if any.
 	 * Called when a comment is permanently deleted from WordPress, or when an
 	 * admin clears the video from the comment edit screen.
+	 *
+	 * The HTTP call runs in a WP-Cron event (with retries), so admin requests
+	 * such as emptying the trash never block on the Mux API.
 	 *
 	 * @param int $comment_id Comment ID.
 	 */
 	public function delete_mux_asset_for_comment( int $comment_id ): void {
-		if ( ! Video_Comments_Settings::has_mux_credentials() ) {
-			return;
-		}
-
 		$asset_id = get_comment_meta( $comment_id, self::META_ASSET_ID, true );
 		if ( empty( $asset_id ) || ! is_string( $asset_id ) ) {
 			return;
 		}
 
-		$provider = new Video_Comments_Provider_Mux(
-			Video_Comments_Settings::get_mux_token_id(),
-			Video_Comments_Settings::get_mux_token_secret()
-		);
-
-		$provider->delete_asset( $asset_id );
+		Video_Comments_Cleanup::schedule_asset_deletion( $asset_id );
 	}
 
 	// -------------------------------------------------------------------------
