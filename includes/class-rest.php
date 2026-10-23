@@ -25,7 +25,7 @@ class Video_Comments_REST {
 	public const NAMESPACE = 'video-comments/v1';
 
 	/** Transient prefix for rate limiting. */
-	private const RATE_LIMIT_PREFIX = 'vc_rl_';
+	private const RATE_LIMIT_PREFIX = 'video_comments_rl_';
 
 	/** Max requests per window per IP. */
 	private const RATE_LIMIT_MAX = 10;
@@ -34,13 +34,13 @@ class Video_Comments_REST {
 	private const RATE_LIMIT_WINDOW = 60;
 
 	/** Transient prefix for the status-polling rate limiter. */
-	private const POLL_RATE_LIMIT_PREFIX = 'vc_rlp_';
+	private const POLL_RATE_LIMIT_PREFIX = 'video_comments_rlp_';
 
 	/** Max status/delete requests per window per IP (the client polls every 3 s). */
 	private const POLL_RATE_LIMIT_MAX = 60;
 
 	/** Transient prefix for per-upload ownership records. */
-	private const UPLOAD_RECORD_PREFIX = 'vc_upload_';
+	private const UPLOAD_RECORD_PREFIX = 'video_comments_upload_';
 
 	/** Lifetime of an ownership record: covers uploading, processing and writing the comment. */
 	private const UPLOAD_RECORD_TTL = 43200; // 12 hours.
@@ -182,7 +182,7 @@ class Video_Comments_REST {
 
 		// Nonce verification.
 		$nonce = $request->get_param( 'nonce' );
-		if ( ! $nonce || false === wp_verify_nonce( $nonce, 'vc_upload_nonce' ) ) {
+		if ( ! $nonce || false === wp_verify_nonce( $nonce, 'video_comments_upload' ) ) {
 			return new WP_Error(
 				'vc_bad_nonce',
 				__( 'Security check failed. Please refresh the page.', 'video-comments' ),

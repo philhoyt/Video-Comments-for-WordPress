@@ -39,10 +39,10 @@ class Video_Comments_Comment_Meta {
 	public const FORM_FIELD_TOKEN = 'video_comments_upload_token';
 
 	/** Nonce action for playback_id validation on comment submit. */
-	private const NONCE_ACTION = 'vc_comment_submit';
+	private const NONCE_ACTION = 'video_comments_comment_submit';
 
 	/** Nonce field name. */
-	public const NONCE_FIELD = 'vc_comment_nonce';
+	public const NONCE_FIELD = 'video_comments_comment_nonce';
 
 	/** Singleton accessor. */
 	public static function get_instance(): self {
@@ -232,7 +232,7 @@ class Video_Comments_Comment_Meta {
 	public function render_comment_meta_box( WP_Comment $comment ): void {
 		$playback_id = self::get_playback_id( (int) $comment->comment_ID );
 
-		wp_nonce_field( 'vc_edit_comment_' . $comment->comment_ID, 'vc_edit_nonce' );
+		wp_nonce_field( 'video_comments_edit_comment_' . $comment->comment_ID, 'video_comments_edit_nonce' );
 		?>
 		<table class="form-table editcomment" style="margin-top:0;">
 			<tbody>
@@ -242,7 +242,7 @@ class Video_Comments_Comment_Meta {
 						<input
 							type="text"
 							id="vc-admin-playback-id"
-							name="vc_playback_id"
+							name="video_comments_playback_id"
 							value="<?php echo esc_attr( $playback_id ); ?>"
 							class="large-text"
 							placeholder="<?php esc_attr_e( 'Leave blank to remove the video', 'video-comments' ); ?>"
@@ -276,11 +276,11 @@ class Video_Comments_Comment_Meta {
 	 * @param int $comment_id Comment ID.
 	 */
 	public function save_admin_comment_meta( int $comment_id ): void {
-		if ( ! isset( $_POST['vc_edit_nonce'] ) ) {
+		if ( ! isset( $_POST['video_comments_edit_nonce'] ) ) {
 			return;
 		}
 
-		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['vc_edit_nonce'] ) ), 'vc_edit_comment_' . $comment_id ) ) {
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['video_comments_edit_nonce'] ) ), 'video_comments_edit_comment_' . $comment_id ) ) {
 			return;
 		}
 
@@ -288,8 +288,8 @@ class Video_Comments_Comment_Meta {
 			return;
 		}
 
-		$playback_id = isset( $_POST['vc_playback_id'] )
-			? sanitize_text_field( wp_unslash( $_POST['vc_playback_id'] ) )
+		$playback_id = isset( $_POST['video_comments_playback_id'] )
+			? sanitize_text_field( wp_unslash( $_POST['video_comments_playback_id'] ) )
 			: '';
 
 		if ( '' === $playback_id ) {

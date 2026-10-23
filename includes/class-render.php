@@ -99,7 +99,7 @@ class Video_Comments_Render {
 			'window.vcSettings = ' . wp_json_encode(
 				[
 					'restUrl'        => esc_url_raw( rest_url( Video_Comments_REST::NAMESPACE ) ),
-					'nonce'          => wp_create_nonce( 'vc_upload_nonce' ),
+					'nonce'          => wp_create_nonce( 'video_comments_upload' ),
 					'restNonce'      => wp_create_nonce( 'wp_rest' ),
 					'maxSizeMb'      => Video_Comments_Settings::max_size_mb(),
 					'hasCredentials' => Video_Comments_Settings::has_mux_credentials(),

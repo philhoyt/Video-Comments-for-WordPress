@@ -148,14 +148,14 @@ class Video_Comments_Settings {
 		);
 
 		add_settings_section(
-			'vc_general',
+			'video_comments_general',
 			__( 'General', 'video-comments' ),
 			'__return_empty_string',
 			'video-comments'
 		);
 
 		add_settings_section(
-			'vc_mux',
+			'video_comments_mux',
 			__( 'Mux API Credentials', 'video-comments' ),
 			[ $this, 'render_mux_section_description' ],
 			'video-comments'
@@ -163,11 +163,11 @@ class Video_Comments_Settings {
 
 		// General fields.
 		add_settings_field(
-			'vc_enabled',
+			'video_comments_enabled',
 			__( 'Enable Video Comments', 'video-comments' ),
 			[ $this, 'render_checkbox' ],
 			'video-comments',
-			'vc_general',
+			'video_comments_general',
 			[
 				'name'  => 'enabled',
 				'label' => __( 'Allow commenters to attach a video', 'video-comments' ),
@@ -175,11 +175,11 @@ class Video_Comments_Settings {
 		);
 
 		add_settings_field(
-			'vc_allow_guests',
+			'video_comments_allow_guests',
 			__( 'Allow Guests', 'video-comments' ),
 			[ $this, 'render_checkbox' ],
 			'video-comments',
-			'vc_general',
+			'video_comments_general',
 			[
 				'name'  => 'allow_guests',
 				'label' => __( 'Let non-logged-in users upload videos', 'video-comments' ),
@@ -187,11 +187,11 @@ class Video_Comments_Settings {
 		);
 
 		add_settings_field(
-			'vc_max_size_mb',
+			'video_comments_max_size_mb',
 			__( 'Max Upload Size (MB)', 'video-comments' ),
 			[ $this, 'render_number' ],
 			'video-comments',
-			'vc_general',
+			'video_comments_general',
 			[
 				'name'      => 'max_size_mb',
 				'min'       => 1,
@@ -202,11 +202,11 @@ class Video_Comments_Settings {
 
 		// Mux credential fields.
 		add_settings_field(
-			'vc_mux_token_id',
+			'video_comments_mux_token_id',
 			__( 'Token ID', 'video-comments' ),
 			[ $this, 'render_text' ],
 			'video-comments',
-			'vc_mux',
+			'video_comments_mux',
 			[
 				'name'      => 'mux_token_id',
 				'constant'  => 'VIDEO_COMMENTS_MUX_TOKEN_ID',
@@ -216,11 +216,11 @@ class Video_Comments_Settings {
 		);
 
 		add_settings_field(
-			'vc_mux_token_secret',
+			'video_comments_mux_token_secret',
 			__( 'Token Secret', 'video-comments' ),
 			[ $this, 'render_text' ],
 			'video-comments',
-			'vc_mux',
+			'video_comments_mux',
 			[
 				'name'      => 'mux_token_secret',
 				'constant'  => 'VIDEO_COMMENTS_MUX_TOKEN_SECRET',
