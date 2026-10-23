@@ -139,7 +139,12 @@ class Video_Comments_Settings {
 		register_setting(
 			'video_comments_group',
 			self::OPTION_KEY,
-			[ $this, 'sanitize_options' ]
+			[
+				'type'              => 'array',
+				'sanitize_callback' => [ $this, 'sanitize_options' ],
+				'default'           => self::DEFAULTS,
+				'show_in_rest'      => false,
+			]
 		);
 
 		add_settings_section(
@@ -188,9 +193,10 @@ class Video_Comments_Settings {
 			'video-comments',
 			'vc_general',
 			[
-				'name' => 'max_size_mb',
-				'min'  => 1,
-				'max'  => 2048,
+				'name'      => 'max_size_mb',
+				'min'       => 1,
+				'max'       => 2048,
+				'label_for' => 'video-comments-max-size-mb',
 			]
 		);
 
@@ -202,9 +208,10 @@ class Video_Comments_Settings {
 			'video-comments',
 			'vc_mux',
 			[
-				'name'     => 'mux_token_id',
-				'constant' => 'VIDEO_COMMENTS_MUX_TOKEN_ID',
-				'type'     => 'text',
+				'name'      => 'mux_token_id',
+				'constant'  => 'VIDEO_COMMENTS_MUX_TOKEN_ID',
+				'type'      => 'text',
+				'label_for' => 'video-comments-mux-token-id',
 			]
 		);
 
@@ -215,9 +222,10 @@ class Video_Comments_Settings {
 			'video-comments',
 			'vc_mux',
 			[
-				'name'     => 'mux_token_secret',
-				'constant' => 'VIDEO_COMMENTS_MUX_TOKEN_SECRET',
-				'type'     => 'password',
+				'name'      => 'mux_token_secret',
+				'constant'  => 'VIDEO_COMMENTS_MUX_TOKEN_SECRET',
+				'type'      => 'password',
+				'label_for' => 'video-comments-mux-token-secret',
 			]
 		);
 	}
@@ -233,12 +241,23 @@ class Video_Comments_Settings {
 			return self::DEFAULTS;
 		}
 
+		// The secret field is rendered empty so the saved value never reaches the
+		// browser. A blank submission keeps the stored secret; the "clear" checkbox
+		// removes it; anything else replaces it.
+		$existing = self::get_options();
+		$secret   = sanitize_text_field( (string) ( $input['mux_token_secret'] ?? '' ) );
+		if ( ! empty( $input['clear_mux_token_secret'] ) ) {
+			$secret = '';
+		} elseif ( '' === $secret ) {
+			$secret = (string) ( $existing['mux_token_secret'] ?? '' );
+		}
+
 		return [
 			'enabled'          => ! empty( $input['enabled'] ) ? 1 : 0,
 			'allow_guests'     => ! empty( $input['allow_guests'] ) ? 1 : 0,
 			'max_size_mb'      => max( 1, min( 2048, (int) ( $input['max_size_mb'] ?? 50 ) ) ),
-			'mux_token_id'     => sanitize_text_field( $input['mux_token_id'] ?? '' ),
-			'mux_token_secret' => sanitize_text_field( $input['mux_token_secret'] ?? '' ),
+			'mux_token_id'     => sanitize_text_field( (string) ( $input['mux_token_id'] ?? '' ) ),
+			'mux_token_secret' => $secret,
 		];
 	}
 
@@ -281,24 +300,29 @@ class Video_Comments_Settings {
 		$opts = self::get_options();
 		$name = esc_attr( $args['name'] );
 		printf(
-			'<input type="number" name="%1$s[%2$s]" value="%3$s" min="%4$s" max="%5$s" class="small-text" />',
+			'<input type="number" id="%6$s" name="%1$s[%2$s]" value="%3$s" min="%4$s" max="%5$s" class="small-text" />',
 			esc_attr( self::OPTION_KEY ),
 			$name, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped via esc_attr() above.
 			esc_attr( (string) ( $opts[ $args['name'] ] ?? '' ) ),
 			esc_attr( (string) ( $args['min'] ?? 1 ) ),
-			esc_attr( (string) ( $args['max'] ?? 9999 ) )
+			esc_attr( (string) ( $args['max'] ?? 9999 ) ),
+			esc_attr( (string) ( $args['label_for'] ?? '' ) )
 		);
 	}
 
 	/**
 	 * Render a text or password settings field.
 	 *
-	 * @param array<string,mixed> $args Field arguments (name, type, constant).
+	 * Password fields never echo the saved value back into the page. They render
+	 * empty, say whether a secret is stored, and offer a checkbox to clear it.
+	 *
+	 * @param array<string,mixed> $args Field arguments (name, type, constant, label_for).
 	 */
 	public function render_text( array $args ): void {
 		$opts     = self::get_options();
 		$name     = esc_attr( $args['name'] );
 		$type     = esc_attr( $args['type'] ?? 'text' );
+		$id       = esc_attr( (string) ( $args['label_for'] ?? '' ) );
 		$constant = $args['constant'] ?? '';
 		$locked   = $constant && defined( $constant );
 
@@ -307,12 +331,33 @@ class Video_Comments_Settings {
 			return;
 		}
 
+		if ( 'password' === $type ) {
+			$has_secret = '' !== (string) ( $opts[ $args['name'] ] ?? '' );
+			printf(
+				'<input type="password" id="%1$s" name="%2$s[%3$s]" value="" class="regular-text" autocomplete="new-password" placeholder="%4$s" />',
+				$id, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped via esc_attr() above.
+				esc_attr( self::OPTION_KEY ),
+				$name, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped via esc_attr() above.
+				$has_secret ? esc_attr__( 'Saved. Enter a new value to replace it.', 'video-comments' ) : ''
+			);
+			if ( $has_secret ) {
+				printf(
+					'<p class="description"><label><input type="checkbox" name="%1$s[clear_%2$s]" value="1" /> %3$s</label></p>',
+					esc_attr( self::OPTION_KEY ),
+					$name, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped via esc_attr() above.
+					esc_html__( 'Clear the saved secret', 'video-comments' )
+				);
+			}
+			return;
+		}
+
 		printf(
-			'<input type="%1$s" name="%2$s[%3$s]" value="%4$s" class="regular-text" autocomplete="off" />',
+			'<input type="%1$s" id="%5$s" name="%2$s[%3$s]" value="%4$s" class="regular-text" autocomplete="off" />',
 			$type, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped via esc_attr() above.
 			esc_attr( self::OPTION_KEY ),
 			$name, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped via esc_attr() above.
-			esc_attr( $opts[ $args['name'] ] ?? '' )
+			esc_attr( (string) ( $opts[ $args['name'] ] ?? '' ) ),
+			$id // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped via esc_attr() above.
 		);
 	}
 
