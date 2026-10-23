@@ -8,6 +8,8 @@
     "languages",
     "lib",
     "README.md",
+    "readme.txt",
+    "uninstall.php",
     "video-comments.php"
   ],
   "scripts": {
