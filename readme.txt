@@ -4,7 +4,7 @@ Tags: comments, video, mux, upload, media
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.1
+Stable tag: 1.2.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -124,6 +124,9 @@ Make sure your theme calls `wp_footer()`, your Mux credentials are saved, and no
 * Initial release.
 
 == Upgrade Notice ==
+
+= 1.2.0 =
+Comments can now be a video on their own, with no text. Nothing to configure; add the video_comments_allow_video_only filter if your site should keep requiring text.
 
 = 1.1.1 =
 Fixes the GitHub release updater choosing the wrong asset. Sites on 1.1.0 must install this version by hand once; updates work automatically from then on.
