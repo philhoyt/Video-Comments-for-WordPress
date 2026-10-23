@@ -46,7 +46,9 @@ class Video_Comments_Render {
 			return;
 		}
 
-		// Enqueue assets on singular posts/pages that have comments open.
+		// Enqueue the uploader assets on singular posts/pages that have comments open.
+		// The player script and stylesheet are also enqueued lazily wherever a video
+		// is actually rendered, so existing videos keep working once comments close.
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
 		// Inject uploader UI into the comment form.
@@ -62,20 +64,25 @@ class Video_Comments_Render {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Enqueue front-end assets on singular posts/pages that have comments open.
+	 * Enqueue front-end assets on singular posts/pages.
+	 *
+	 * The stylesheet is needed whenever the uploader or a player can appear, so
+	 * it loads while comments are open or the post already has comments. The
+	 * uploader script only loads while comments are open, since that is the only
+	 * time the uploader renders.
 	 */
 	public function enqueue_assets(): void {
-		if ( ! is_singular() || ! comments_open() ) {
+		if ( ! is_singular() ) {
 			return;
 		}
 
-		// Plugin stylesheet.
-		wp_enqueue_style(
-			'video-comments',
-			VIDEO_COMMENTS_PLUGIN_URL . 'assets/video-comments.css',
-			[],
-			VIDEO_COMMENTS_VERSION
-		);
+		if ( comments_open() || get_comments_number() > 0 ) {
+			$this->enqueue_style();
+		}
+
+		if ( ! comments_open() ) {
+			return;
+		}
 
 		// Plugin JS.
 		wp_enqueue_script(
@@ -119,13 +126,23 @@ class Video_Comments_Render {
 			) . ';',
 			'before'
 		);
-
-		// Mux player (only needed for the display side, but enqueue here for efficiency).
-		$this->enqueue_mux_player();
 	}
 
 	/**
-	 * Enqueue the Mux player custom element.
+	 * Enqueue the plugin stylesheet (uploader and player styles). Idempotent.
+	 */
+	private function enqueue_style(): void {
+		wp_enqueue_style(
+			'video-comments',
+			VIDEO_COMMENTS_PLUGIN_URL . 'assets/video-comments.css',
+			[],
+			VIDEO_COMMENTS_VERSION
+		);
+	}
+
+	/**
+	 * Enqueue the Mux player custom element. Idempotent, and safe to call during
+	 * the loop: a script enqueued after wp_head is printed in the footer.
 	 * Filterable and can be disabled entirely by returning false from the filter.
 	 */
 	private function enqueue_mux_player(): void {
@@ -156,6 +173,11 @@ class Video_Comments_Render {
 		$has_creds   = Video_Comments_Settings::has_mux_credentials();
 		$allow_guest = Video_Comments_Settings::allow_guests();
 		$is_guest    = ! is_user_logged_in();
+
+		// The uploader shows an inline preview player once the video is ready.
+		if ( $has_creds && ( ! $is_guest || $allow_guest ) ) {
+			$this->enqueue_mux_player();
+		}
 
 		// Render nonce + hidden field always (they're inert without a value).
 		// Actual uploader state is managed by JS.
@@ -271,6 +293,11 @@ class Video_Comments_Render {
 		if ( empty( $playback_id ) ) {
 			return $text;
 		}
+
+		// A video is about to render: make sure the player element and its styles load,
+		// whether or not comments are still open on this post.
+		$this->enqueue_style();
+		$this->enqueue_mux_player();
 
 		$player_html = $this->build_player_html( $playback_id );
 
