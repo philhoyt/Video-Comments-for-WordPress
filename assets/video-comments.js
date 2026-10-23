@@ -6,11 +6,12 @@
  *  - Requesting a Mux direct-upload URL from WordPress REST
  *  - XHR PUT to Mux direct-upload URL with progress tracking
  *  - Polling WP REST for upload/asset status until ready
- *  - Setting hidden form field with playback_id
+ *  - Setting hidden form fields with the upload ID and its token (the server
+ *    resolves the playback/asset IDs from Mux when the comment is saved)
  *  - Blocking comment form submission while upload is in progress
  *
  * No build step required — plain vanilla JS (ES2017+ for async/await).
- * The global `vcSettings` object is injected via wp_localize_script().
+ * The global `vcSettings` object is injected via wp_add_inline_script().
  *
  * @typedef {Object} VcSettings
  * @property {string}  restUrl        Base REST URL for the plugin namespace.
@@ -44,8 +45,8 @@
 	let progressBar = null;
 	let progressPct = null;
 	let statusEl = null;
-	let playbackField = null;
-	let assetIdField = null;
+	let uploadIdField = null;
+	let uploadTokenField = null;
 	let submitBtn = null;
 
 	// Original dropzone text — stored during init so resetState can restore them.
@@ -59,9 +60,9 @@
 		file: null, // File object selected by user
 		uploading: false, // XHR in flight
 		processing: false, // Waiting for Mux asset to be ready
-		playbackId: '', // Resolved playback ID
-		assetId: '', // Mux asset ID (for deletion)
+		playbackId: '', // Resolved playback ID (preview only)
 		uploadId: '', // Mux upload_id from WP REST
+		uploadToken: '', // Per-upload secret from WP REST; proves ownership
 		pollTimer: null, // setInterval handle for status polling
 		dotTimer: null, // setInterval handle for animated dots
 		xhr: null, // Active XHR for cancel support
@@ -87,8 +88,8 @@
 		progressBar = document.getElementById( 'vc-progress' );
 		progressPct = document.getElementById( 'vc-progress-pct' );
 		statusEl = document.getElementById( 'vc-status' );
-		playbackField = document.getElementById( 'vc-playback-id' );
-		assetIdField = document.getElementById( 'vc-asset-id' );
+		uploadIdField = document.getElementById( 'vc-upload-id' );
+		uploadTokenField = document.getElementById( 'vc-upload-token' );
 
 		// Try inside the form first; block themes sometimes render the submit
 		// button outside <form>, so fall back to a document-wide search.
@@ -202,16 +203,13 @@
 		clearInterval( state.pollTimer );
 
 		// Delete the uploaded asset from Mux (best-effort, fire-and-forget).
-		if ( state.uploadId || state.assetId ) {
-			const params = new URLSearchParams( { nonce: cfg.nonce } );
-			// upload_id is required by the server for ownership verification.
-			if ( state.uploadId ) {
-				params.set( 'upload_id', state.uploadId );
-			}
-			// asset_id lets the server skip the Mux status lookup when available.
-			if ( state.assetId ) {
-				params.set( 'asset_id', state.assetId );
-			}
+		// The server resolves the asset from the upload; the token proves ownership.
+		if ( state.uploadId && state.uploadToken ) {
+			const params = new URLSearchParams( {
+				nonce: cfg.nonce,
+				upload_id: state.uploadId,
+				upload_token: state.uploadToken,
+			} );
 			fetch( cfg.restUrl + '/mux/video?' + params.toString(), {
 				method: 'DELETE',
 				headers: { 'X-WP-Nonce': cfg.restNonce },
@@ -259,6 +257,7 @@
 			// Step 1: get direct upload URL.
 			const uploadData = await requestDirectUploadUrl( file );
 			state.uploadId = uploadData.upload_id;
+			state.uploadToken = uploadData.upload_token || '';
 
 			// Step 2: upload file directly to Mux.
 			await uploadToMux( uploadData.upload_url, file );
@@ -288,7 +287,7 @@
 	 * Call WP REST to get a Mux direct-upload URL.
 	 *
 	 * @param {File} file
-	 * @return {Promise<{upload_id: string, upload_url: string}>} Resolves with upload ID and URL from Mux.
+	 * @return {Promise<{upload_id: string, upload_url: string, upload_token: string}>} Resolves with upload ID, URL and ownership token.
 	 */
 	async function requestDirectUploadUrl( file ) {
 		const body = new FormData();
@@ -385,6 +384,7 @@
 				try {
 					const url = new URL( cfg.restUrl + '/mux/upload-status' );
 					url.searchParams.set( 'upload_id', uploadId );
+					url.searchParams.set( 'upload_token', state.uploadToken );
 					url.searchParams.set( 'nonce', cfg.nonce );
 
 					const res = await fetch( url.toString(), {
@@ -409,10 +409,11 @@
 						state.pollTimer = null;
 						state.processing = false;
 						state.playbackId = json.playback_id;
-						state.assetId = json.asset_id || '';
-						playbackField.value = json.playback_id;
-						if ( assetIdField ) {
-							assetIdField.value = state.assetId;
+						if ( uploadIdField ) {
+							uploadIdField.value = state.uploadId;
+						}
+						if ( uploadTokenField ) {
+							uploadTokenField.value = state.uploadToken;
 						}
 						stopProcessingAnimation();
 						lockForm( false );
@@ -448,19 +449,19 @@
 		state.uploading = false;
 		state.processing = false;
 		state.playbackId = '';
-		state.assetId = '';
 		state.uploadId = '';
+		state.uploadToken = '';
 		state.pollTimer = null;
 		state.xhr = null;
 
 		if ( fileInput ) {
 			fileInput.value = '';
 		}
-		if ( playbackField ) {
-			playbackField.value = '';
+		if ( uploadIdField ) {
+			uploadIdField.value = '';
 		}
-		if ( assetIdField ) {
-			assetIdField.value = '';
+		if ( uploadTokenField ) {
+			uploadTokenField.value = '';
 		}
 
 		// Reset drop zone and buttons.

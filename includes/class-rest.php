@@ -33,6 +33,18 @@ class Video_Comments_REST {
 	/** Rate-limit window in seconds. */
 	private const RATE_LIMIT_WINDOW = 60;
 
+	/** Transient prefix for the status-polling rate limiter. */
+	private const POLL_RATE_LIMIT_PREFIX = 'vc_rlp_';
+
+	/** Max status/delete requests per window per IP (the client polls every 3 s). */
+	private const POLL_RATE_LIMIT_MAX = 60;
+
+	/** Transient prefix for per-upload ownership records. */
+	private const UPLOAD_RECORD_PREFIX = 'vc_upload_';
+
+	/** Lifetime of an ownership record: covers uploading, processing and writing the comment. */
+	private const UPLOAD_RECORD_TTL = 43200; // 12 hours.
+
 	/**
 	 * Singleton accessor.
 	 */
@@ -83,25 +95,26 @@ class Video_Comments_REST {
 			]
 		);
 
-		// DELETE /video-comments/v1/mux/video — delete an asset from Mux.
+		// DELETE /video-comments/v1/mux/video — delete the asset behind an upload from Mux.
 		register_rest_route(
 			self::NAMESPACE,
 			'/mux/video',
 			[
 				'methods'             => WP_REST_Server::DELETABLE,
 				'callback'            => [ $this, 'handle_delete_video' ],
-				'permission_callback' => [ $this, 'check_upload_permission' ],
+				'permission_callback' => [ $this, 'check_owner_permission' ],
 				'args'                => [
-					'asset_id'  => [
-						'type'              => 'string',
-						'sanitize_callback' => 'sanitize_text_field',
-					],
-					'upload_id' => [
+					'upload_id'    => [
 						'type'              => 'string',
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_text_field',
 					],
-					'nonce'     => [
+					'upload_token' => [
+						'type'              => 'string',
+						'required'          => true,
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'nonce'        => [
 						'type'              => 'string',
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_text_field',
@@ -117,14 +130,19 @@ class Video_Comments_REST {
 			[
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => [ $this, 'handle_upload_status' ],
-				'permission_callback' => [ $this, 'check_upload_permission' ],
+				'permission_callback' => [ $this, 'check_owner_permission' ],
 				'args'                => [
-					'upload_id' => [
+					'upload_id'    => [
 						'type'              => 'string',
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_text_field',
 					],
-					'nonce'     => [
+					'upload_token' => [
+						'type'              => 'string',
+						'required'          => true,
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'nonce'        => [
 						'type'              => 'string',
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_text_field',
@@ -177,7 +195,6 @@ class Video_Comments_REST {
 
 	/**
 	 * Permission check for direct-upload: same as above plus rate limiting.
-	 * Rate limiting is intentionally NOT applied to the polling endpoint.
 	 *
 	 * @param WP_REST_Request $request Incoming request.
 	 * @return true|WP_Error
@@ -188,9 +205,43 @@ class Video_Comments_REST {
 			return $check;
 		}
 
-		$rate_check = $this->check_rate_limit();
+		$rate_check = $this->check_rate_limit( self::RATE_LIMIT_PREFIX, self::RATE_LIMIT_MAX );
 		if ( is_wp_error( $rate_check ) ) {
 			return $rate_check;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Permission check for routes that act on an existing upload (status, delete):
+	 * the shared checks, a looser polling rate limit, and the per-upload token
+	 * issued by handle_direct_upload(). Only the caller who created the upload
+	 * holds that token, so guests sharing one nonce cannot touch each other's uploads.
+	 *
+	 * @param WP_REST_Request $request Incoming request.
+	 * @return true|WP_Error
+	 */
+	public function check_owner_permission( WP_REST_Request $request ) {
+		$check = $this->check_upload_permission( $request );
+		if ( is_wp_error( $check ) ) {
+			return $check;
+		}
+
+		$rate_check = $this->check_rate_limit( self::POLL_RATE_LIMIT_PREFIX, self::POLL_RATE_LIMIT_MAX );
+		if ( is_wp_error( $rate_check ) ) {
+			return $rate_check;
+		}
+
+		$upload_id = (string) $request->get_param( 'upload_id' );
+		$token     = (string) $request->get_param( 'upload_token' );
+
+		if ( ! self::verify_upload_token( $upload_id, $token ) ) {
+			return new WP_Error(
+				'vc_not_owner',
+				__( 'You are not authorised to access this upload.', 'video-comments' ),
+				[ 'status' => 403 ]
+			);
 		}
 
 		return true;
@@ -250,13 +301,9 @@ class Video_Comments_REST {
 			return $result;
 		}
 
-		// Record that this nonce "owns" the upload so the DELETE endpoint can verify.
-		$nonce = (string) $request->get_param( 'nonce' );
-		set_transient(
-			'vc_del_' . sanitize_key( $result['upload_id'] ),
-			md5( $nonce ),
-			2 * HOUR_IN_SECONDS
-		);
+		// Issue a per-upload secret. It is required to poll or delete this upload and
+		// to attach it to a comment, and it is only ever returned to the caller who created it.
+		$result['upload_token'] = self::issue_upload_token( (string) $result['upload_id'] );
 
 		return rest_ensure_response( $result );
 	}
@@ -303,7 +350,11 @@ class Video_Comments_REST {
 	}
 
 	/**
-	 * DELETE /mux/video — delete a Mux asset by asset_id or upload_id.
+	 * DELETE /mux/video — delete the Mux asset behind an upload.
+	 *
+	 * Ownership is verified in check_owner_permission(). The asset ID is always
+	 * resolved from Mux via the upload, never taken from the client, so a caller
+	 * can only ever delete the asset created by their own upload.
 	 *
 	 * @param WP_REST_Request $request Incoming request.
 	 * @return WP_REST_Response|WP_Error
@@ -318,33 +369,18 @@ class Video_Comments_REST {
 		}
 
 		$upload_id = (string) $request->get_param( 'upload_id' );
-		$asset_id  = (string) $request->get_param( 'asset_id' );
-		$nonce     = (string) $request->get_param( 'nonce' );
+		$provider  = $this->get_provider();
 
-		// Verify ownership: the transient set during create_direct_upload must match this nonce.
-		$stored = get_transient( 'vc_del_' . sanitize_key( $upload_id ) );
-		if ( false === $stored || md5( $nonce ) !== $stored ) {
-			return new WP_Error(
-				'vc_not_owner',
-				__( 'You are not authorised to delete this upload.', 'video-comments' ),
-				[ 'status' => 403 ]
-			);
+		$status = $provider->get_upload_status( $upload_id );
+		if ( is_wp_error( $status ) ) {
+			return $status;
 		}
 
-		$provider = $this->get_provider();
+		$asset_id = (string) ( $status['asset_id'] ?? '' );
 
-		// Resolve asset_id from Mux if the client didn't send it (upload still in progress).
-		if ( empty( $asset_id ) ) {
-			$status = $provider->get_upload_status( $upload_id );
-			if ( is_wp_error( $status ) ) {
-				return $status;
-			}
-			$asset_id = $status['asset_id'] ?? '';
-		}
-
-		if ( empty( $asset_id ) ) {
-			// Upload exists but no asset created yet — clean up the ownership transient.
-			delete_transient( 'vc_del_' . sanitize_key( $upload_id ) );
+		if ( '' === $asset_id ) {
+			// Upload exists but no asset was created yet — just forget the ownership record.
+			self::forget_upload( $upload_id );
 			return rest_ensure_response( [ 'deleted' => false ] );
 		}
 
@@ -354,7 +390,7 @@ class Video_Comments_REST {
 			return $result;
 		}
 
-		delete_transient( 'vc_del_' . sanitize_key( $upload_id ) );
+		self::forget_upload( $upload_id );
 		return rest_ensure_response( [ 'deleted' => true ] );
 	}
 
@@ -372,18 +408,78 @@ class Video_Comments_REST {
 		);
 	}
 
+	// -------------------------------------------------------------------------
+	// Upload ownership
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Verify the per-upload token issued by handle_direct_upload().
+	 *
+	 * Used by the REST permission callback and by the comment-save path, which
+	 * only attaches an upload to a comment when the submitter holds its token.
+	 *
+	 * @param string $upload_id Mux upload ID.
+	 * @param string $token     Token presented by the client.
+	 */
+	public static function verify_upload_token( string $upload_id, string $token ): bool {
+		if ( '' === $upload_id || '' === $token ) {
+			return false;
+		}
+
+		$stored = get_transient( self::upload_record_key( $upload_id ) );
+
+		return is_string( $stored ) && hash_equals( $stored, wp_hash( $token ) );
+	}
+
+	/**
+	 * Remove the ownership record for an upload (after deletion, or once it is
+	 * attached to a comment so the token cannot be reused to delete it).
+	 *
+	 * @param string $upload_id Mux upload ID.
+	 */
+	public static function forget_upload( string $upload_id ): void {
+		delete_transient( self::upload_record_key( $upload_id ) );
+	}
+
+	/**
+	 * Generate a random secret for a new upload and store its hash.
+	 *
+	 * @param string $upload_id Mux upload ID.
+	 * @return string The plain token to hand back to the client (stored only as a hash).
+	 */
+	private static function issue_upload_token( string $upload_id ): string {
+		$token = wp_generate_password( 32, false );
+		set_transient( self::upload_record_key( $upload_id ), wp_hash( $token ), self::UPLOAD_RECORD_TTL );
+		return $token;
+	}
+
+	/**
+	 * Transient key for an upload's ownership record.
+	 *
+	 * @param string $upload_id Mux upload ID.
+	 */
+	private static function upload_record_key( string $upload_id ): string {
+		return self::UPLOAD_RECORD_PREFIX . md5( $upload_id );
+	}
+
+	// -------------------------------------------------------------------------
+	// Rate limiting
+	// -------------------------------------------------------------------------
+
 	/**
 	 * Simple transient-based rate limiter keyed by client IP.
 	 *
+	 * @param string $prefix Transient prefix identifying the limiter bucket.
+	 * @param int    $max    Max requests per window.
 	 * @return true|WP_Error
 	 */
-	private function check_rate_limit() {
+	private function check_rate_limit( string $prefix, int $max ) {
 		$ip  = $this->get_client_ip();
-		$key = self::RATE_LIMIT_PREFIX . md5( $ip );
+		$key = $prefix . md5( $ip );
 
 		$count = (int) get_transient( $key );
 
-		if ( $count >= self::RATE_LIMIT_MAX ) {
+		if ( $count >= $max ) {
 			return new WP_Error(
 				'vc_rate_limited',
 				__( 'Too many requests. Please wait a moment and try again.', 'video-comments' ),

@@ -42,7 +42,7 @@ define( 'VIDEO_COMMENTS_MUX_TOKEN_SECRET', 'your-token-secret' );
 
 ## How uploads work
 
-The uploader requests a short-lived upload URL from WordPress, then PUTs the file directly to Mux from the browser. Once the upload finishes, the page polls until Mux has processed the video and hands back a playback ID. That ID gets submitted with the comment form and stored in comment meta.
+The uploader requests a short-lived upload URL from WordPress, then PUTs the file directly to Mux from the browser. WordPress also hands back a one-time token for that upload; only the browser that started the upload holds it, and it is required to poll the upload's status or remove it. Once the upload finishes, the page polls until Mux has processed the video. The comment form then submits the upload ID and its token, and WordPress looks the upload up in Mux and stores the playback ID it gets back in comment meta. Playback and asset IDs are never accepted from the browser, so a comment can only carry a video that was uploaded through this site.
 
 The submit button stays disabled until the video is fully ready, so there's no way to accidentally post a comment with a broken video attached.
 

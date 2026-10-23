@@ -32,11 +32,11 @@ class Video_Comments_Comment_Meta {
 	/** Comment meta key — Mux asset ID. */
 	public const META_ASSET_ID = 'video_comments_mux_asset_id';
 
-	/** Hidden input name posted with the comment form — playback ID. */
-	public const FORM_FIELD = 'video_comments_mux_playback_id';
+	/** Hidden input name posted with the comment form — Mux upload ID. */
+	public const FORM_FIELD_UPLOAD = 'video_comments_mux_upload_id';
 
-	/** Hidden input name posted with the comment form — asset ID. */
-	public const FORM_FIELD_ASSET = 'video_comments_mux_asset_id_field';
+	/** Hidden input name posted with the comment form — per-upload token issued by the REST API. */
+	public const FORM_FIELD_TOKEN = 'video_comments_upload_token';
 
 	/** Nonce action for playback_id validation on comment submit. */
 	private const NONCE_ACTION = 'vc_comment_submit';
@@ -60,8 +60,8 @@ class Video_Comments_Comment_Meta {
 		// Save meta after comment is inserted.
 		add_action( 'comment_post', [ $this, 'save_comment_video_meta' ], 10, 3 );
 
-		// Allow the playback_id field through WP comment data sanitization.
-		add_filter( 'preprocess_comment', [ $this, 'capture_playback_id_before_sanitize' ] );
+		// Carry the upload fields through WP comment data sanitization.
+		add_filter( 'preprocess_comment', [ $this, 'capture_upload_fields_before_sanitize' ] );
 
 		// Admin comment edit page.
 		add_action( 'add_meta_boxes_comment', [ $this, 'add_comment_meta_box' ] );
@@ -77,37 +77,43 @@ class Video_Comments_Comment_Meta {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Stash the raw playback_id from $_POST before WP strips unknown keys.
-	 * We use a static variable to carry it into save_comment_video_meta().
+	 * Stash the raw upload fields from $_POST before WP strips unknown keys,
+	 * so they are available to save_comment_video_meta() via $commentdata.
 	 *
 	 * @param array<string,mixed> $comment_data Data array passed to wp_insert_comment.
 	 * @return array<string,mixed>
 	 */
-	public function capture_playback_id_before_sanitize( array $comment_data ): array {
+	public function capture_upload_fields_before_sanitize( array $comment_data ): array {
 		// Only capture when the feature is active.
 		if ( ! Video_Comments_Settings::is_enabled() ) {
 			return $comment_data;
 		}
 
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- nonce verified in save_comment_video_meta.
-		$playback_id = isset( $_POST[ self::FORM_FIELD ] )
-			? sanitize_text_field( wp_unslash( $_POST[ self::FORM_FIELD ] ) )
+		$upload_id = isset( $_POST[ self::FORM_FIELD_UPLOAD ] )
+			? sanitize_text_field( wp_unslash( $_POST[ self::FORM_FIELD_UPLOAD ] ) )
 			: '';
 
-		$asset_id = isset( $_POST[ self::FORM_FIELD_ASSET ] )
-			? sanitize_text_field( wp_unslash( $_POST[ self::FORM_FIELD_ASSET ] ) )
+		$token = isset( $_POST[ self::FORM_FIELD_TOKEN ] )
+			? sanitize_text_field( wp_unslash( $_POST[ self::FORM_FIELD_TOKEN ] ) )
 			: '';
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 
 		// Store on the data array under private keys so they survive into the post hook.
-		$comment_data['_vc_playback_id'] = $playback_id;
-		$comment_data['_vc_asset_id']    = $asset_id;
+		$comment_data['_vc_upload_id']    = $upload_id;
+		$comment_data['_vc_upload_token'] = $token;
 
 		return $comment_data;
 	}
 
 	/**
-	 * After comment is inserted, persist video meta if a valid playback_id was submitted.
+	 * After the comment is inserted, attach the video if the submitter owns a
+	 * finished upload.
+	 *
+	 * The playback and asset IDs are never taken from the form. The form only
+	 * carries the upload ID and the per-upload token issued when the upload was
+	 * created; both IDs are then resolved from Mux for that upload, so a commenter
+	 * cannot attach a video they did not upload through this site.
 	 *
 	 * @param int                 $comment_id  New comment ID.
 	 * @param int|string          $approved    Approval status (0|1|'spam').
@@ -134,25 +140,52 @@ class Video_Comments_Comment_Meta {
 			return;
 		}
 
-		// Retrieve playback_id (set in capture_playback_id_before_sanitize).
-		$playback_id = sanitize_text_field( $commentdata['_vc_playback_id'] ?? '' );
+		$upload_id = sanitize_text_field( (string) ( $commentdata['_vc_upload_id'] ?? '' ) );
+		$token     = sanitize_text_field( (string) ( $commentdata['_vc_upload_token'] ?? '' ) );
 
-		if ( empty( $playback_id ) ) {
+		if ( '' === $upload_id || '' === $token ) {
 			return;
 		}
 
-		// Basic format sanity: Mux playback IDs are alphanumeric + hyphens.
-		if ( ! preg_match( '/^[A-Za-z0-9\-]+$/', $playback_id ) ) {
+		// Only the caller who created the upload holds its token.
+		if ( ! Video_Comments_REST::verify_upload_token( $upload_id, $token ) ) {
 			return;
 		}
 
-		$asset_id = sanitize_text_field( $commentdata['_vc_asset_id'] ?? '' );
+		if ( ! Video_Comments_Settings::has_mux_credentials() ) {
+			return;
+		}
+
+		$provider = new Video_Comments_Provider_Mux(
+			Video_Comments_Settings::get_mux_token_id(),
+			Video_Comments_Settings::get_mux_token_secret()
+		);
+
+		$status = $provider->get_upload_status( $upload_id );
+		if ( is_wp_error( $status ) ) {
+			return;
+		}
+
+		$playback_id = (string) ( $status['playback_id'] ?? '' );
+		$asset_id    = (string) ( $status['asset_id'] ?? '' );
+
+		// Nothing to attach until Mux has produced a playable asset.
+		if ( '' === $playback_id || '' === $asset_id ) {
+			return;
+		}
+
+		// Format sanity on what Mux returned: IDs are alphanumeric + hyphens.
+		if ( ! preg_match( '/^[A-Za-z0-9\-]+$/', $playback_id ) || ! preg_match( '/^[A-Za-z0-9\-]+$/', $asset_id ) ) {
+			return;
+		}
 
 		add_comment_meta( $comment_id, self::META_PROVIDER, 'mux', true );
 		add_comment_meta( $comment_id, self::META_PLAYBACK_ID, $playback_id, true );
-		if ( '' !== $asset_id && preg_match( '/^[A-Za-z0-9\-]+$/', $asset_id ) ) {
-			add_comment_meta( $comment_id, self::META_ASSET_ID, $asset_id, true );
-		}
+		add_comment_meta( $comment_id, self::META_ASSET_ID, $asset_id, true );
+
+		// The upload now belongs to this comment; retire the token so it cannot be
+		// used to delete the asset through the REST API afterwards.
+		Video_Comments_REST::forget_upload( $upload_id );
 	}
 
 	// -------------------------------------------------------------------------
