@@ -69,7 +69,7 @@ class Video_Comments_Comment_Meta {
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
 
 		// Delete the Mux asset when a comment is permanently deleted.
-		add_action( 'delete_comment', [ $this, 'delete_mux_asset_for_comment' ], 10, 2 );
+		add_action( 'delete_comment', [ $this, 'delete_mux_asset_for_comment' ] );
 	}
 
 	// -------------------------------------------------------------------------

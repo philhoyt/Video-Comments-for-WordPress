@@ -7,6 +7,8 @@
 	<exclude-pattern>/vendor/*</exclude-pattern>
 	<exclude-pattern>/node_modules/*</exclude-pattern>
 	<exclude-pattern>/lib/*</exclude-pattern>
+	<exclude-pattern>/.claude/*</exclude-pattern>
+	<exclude-pattern>/plans/*</exclude-pattern>
 
 	<!-- Show progress and use colours -->
 	<arg value="sp"/>

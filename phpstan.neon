@@ -1,6 +1,5 @@
 includes:
     - vendor/szepeviktor/phpstan-wordpress/extension.neon
-    - phpstan-baseline.neon
 
 parameters:
     level: 5
@@ -13,4 +12,5 @@ parameters:
         - tests (?)
         - lib
     bootstrapFiles:
+        - tests/phpstan/constants.php
         - lib/plugin-update-checker/plugin-update-checker.php

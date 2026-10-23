@@ -150,7 +150,7 @@ class Video_Comments_Render {
 		 * Filter the Mux player script URL.
 		 * Return false to skip loading (e.g. if the theme already loads it).
 		 *
-		 * @param string $url CDN URL.
+		 * @param string|false $url CDN URL, or false to skip loading the player.
 		 */
 		$src = apply_filters( 'video_comments_mux_player_src', self::MUX_PLAYER_CDN );
 
