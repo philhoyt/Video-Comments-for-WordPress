@@ -576,7 +576,7 @@ class Video_Comments_Comment_Meta {
 			return;
 		}
 
-		if ( ! preg_match( '/^[A-Za-z0-9\-]+$/', $playback_id ) ) {
+		if ( ! preg_match( self::ID_PATTERN, $playback_id ) ) {
 			return;
 		}
 
