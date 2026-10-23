@@ -332,6 +332,13 @@ class Video_Comments_Comment_Meta {
 			return false;
 		}
 
+		// The video is the whole comment, so an asset that already belongs to
+		// another comment cannot carry a new empty one (see the same guard in
+		// save_comment_video_meta()).
+		if ( Video_Comments_Cleanup::asset_in_use( (string) $status['asset_id'] ) ) {
+			return false;
+		}
+
 		self::$authorized_uploads[ $upload_id ] = $status;
 
 		return true;
