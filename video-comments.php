@@ -3,7 +3,7 @@
  * Plugin Name:       Video Comments using Mux
  * Plugin URI:        https://github.com/philhoyt/Video-Comments-for-WordPress
  * Description:       Extends WordPress comments to support uploading and displaying a video per comment via Mux.
- * Version:           1.0.0
+ * Version:           1.1.0
  * Requires at least: 6.0
  * Tested up to:      7.1
  * Requires PHP:      7.4
@@ -24,7 +24,7 @@ use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 defined( 'ABSPATH' ) || exit;
 
 // Plugin constants.
-define( 'VIDEO_COMMENTS_VERSION', '1.0.0' );
+define( 'VIDEO_COMMENTS_VERSION', '1.1.0' );
 define( 'VIDEO_COMMENTS_PLUGIN_FILE', __FILE__ );
 define( 'VIDEO_COMMENTS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'VIDEO_COMMENTS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

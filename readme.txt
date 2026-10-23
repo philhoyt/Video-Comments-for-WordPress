@@ -4,7 +4,7 @@ Tags: comments, video, mux, upload, media
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -93,10 +93,26 @@ Make sure your theme calls `wp_footer()`, your Mux credentials are saved, and no
 
 == Changelog ==
 
+= 1.1.0 =
+* Security: Each upload now carries a one-time token. Only the browser that started an upload can check its status or remove it, and the playback and asset IDs are looked up from Mux when the comment is saved instead of being accepted from the form.
+* Security: The Mux Token Secret is no longer written back into the settings form. Leave the field blank to keep it, or tick the new checkbox to clear it.
+* Fix: Videos keep playing on posts after comments have been closed.
+* Add: Videos are removed from Mux in the background when a comment is permanently deleted or an administrator clears it, with automatic retries. Uploads that never became a comment are cleaned up by a daily task.
+* Add: Privacy tools support. Suggested privacy-policy text appears under Settings → Privacy, and videos are included in personal-data exports and removed by erasure requests.
+* Add: Deleting the plugin removes its settings, comment video data, counters and scheduled tasks.
+* Add: `video_comments_client_ip` filter so sites behind a reverse proxy or CDN can rate-limit per visitor.
+* Change: The file picker is reachable by keyboard, the uploader meets contrast guidelines, and screen readers hear a single processing announcement.
+* Change: The Mux player is pinned to version 3 and loads only on pages that show a video or the uploader.
+* Change: Status polling is rate limited. The upload size limit is now documented as a browser-side check, since files go straight from the browser to Mux.
+* Change: Tested up to WordPress 7.1.
+
 = 1.0.0 =
 * Initial release.
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+Security hardening of the upload flow, background clean-up of Mux assets, privacy-tools support and accessibility fixes. Pages cached before the update need a refresh before their first upload.
 
 = 1.0.0 =
 Initial release.
