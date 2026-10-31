@@ -52,7 +52,7 @@ Once a video is ready, the comment text is optional: the commenter can post the 
 
 Things worth knowing:
 
-- WordPress normally rejects a second comment whose text matches an earlier one by the same person. Two video-only comments both have empty text, so the plugin skips that check for them. The usual 15-second gap between comments from the same person still applies.
+- WordPress normally rejects a second comment whose text matches an earlier one by the same person. A comment that carries its own finished video is never a duplicate, whether it has text or not (two video-only comments both have empty text), so the plugin skips that check for it. Without that, the video would already be on Mux while the comment was refused. The usual 15-second gap between comments from the same person still applies.
 - Moderation keys, the disallowed-comment list, and the link limit all look at the comment text, so they cannot catch anything in a video-only comment. Returning commenters may be auto-approved under **Settings → Discussion** as usual.
 - In the admin Comments list a video-only comment shows as **[Video comment]** with a link to its edit screen, where the video plays. The new-comment and moderation emails include a line pointing at the video.
 - The video is the whole comment. If you deactivate the plugin, or clear the playback ID on the comment's edit screen, the comment is left blank. Trash the comment instead if you want it gone.
