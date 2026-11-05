@@ -4,7 +4,7 @@ Tags: comments, video, mux, upload, media
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -96,6 +96,9 @@ Make sure your theme calls `wp_footer()`, your Mux credentials are saved, and no
 3. Settings page under Settings → Video Comments.
 
 == Changelog ==
+
+= 1.2.1 =
+* Fix: A comment with its own video is accepted even when its text repeats an earlier comment. WordPress compared only the author and text, so a repeated caption was refused after the video had already uploaded.
 
 = 1.2.0 =
 * Add: A comment can be just a video. Once the upload is ready the text box becomes optional, and WordPress accepts the empty comment when the video checks out. Text is still required for comments made through the REST API or XML-RPC.
