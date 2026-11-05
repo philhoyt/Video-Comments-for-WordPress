@@ -62,8 +62,9 @@ class Video_Comments_Comment_Meta {
 	private static array $resolved_uploads = [];
 
 	/**
-	 * Uploads that passed every video-only check in this request, upload_id => status array.
-	 * Only this array authorises the empty-body and duplicate-check bypasses.
+	 * Uploads the submitter proved to own and Mux confirmed ready in this request,
+	 * upload_id => status array. Only this array authorises the empty-body and
+	 * duplicate-check bypasses.
 	 *
 	 * @var array<string,array<string,mixed>>
 	 */
@@ -102,7 +103,8 @@ class Video_Comments_Comment_Meta {
 		// Carry the upload fields through WP comment data sanitization.
 		add_filter( 'preprocess_comment', [ $this, 'capture_upload_fields_before_sanitize' ] );
 
-		// Video-only comments: the empty-body and duplicate-check overrides are
+		// The empty-body override (video-only comments) and the duplicate-check
+		// override (a comment with its own video is never a duplicate) are
 		// registered from pre_comment_on_post, which only the classic form handler
 		// wp_handle_comment_submission() fires. REST and XML-RPC comment creation
 		// apply allow_empty_comment too but never fire comment_post, so a video
@@ -205,9 +207,9 @@ class Video_Comments_Comment_Meta {
 			return;
 		}
 
-		// A video-only submission already proved ownership and readiness in
-		// allow_video_only_comment() during this request; reuse that result so
-		// the attach cannot diverge from the decision that let the comment in.
+		// A video-only or duplicate-flagged submission already proved ownership
+		// and readiness earlier in this request; reuse that result so the attach
+		// cannot diverge from the decision that let the comment in.
 		$authorized = isset( self::$authorized_uploads[ $upload_id ] );
 
 		// Only the caller who created the upload holds its token.
@@ -258,7 +260,7 @@ class Video_Comments_Comment_Meta {
 	 */
 	public function register_form_submission_hooks( int $comment_post_id ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- required by the pre_comment_on_post hook.
 		add_filter( 'allow_empty_comment', [ $this, 'allow_video_only_comment' ], 10, 2 );
-		add_filter( 'duplicate_comment_id', [ $this, 'skip_duplicate_check_for_video_only' ], 10, 2 );
+		add_filter( 'duplicate_comment_id', [ $this, 'skip_duplicate_check_for_video_comment' ], 10, 2 );
 	}
 
 	/**
@@ -284,30 +286,8 @@ class Video_Comments_Comment_Meta {
 			return false;
 		}
 
-		if ( ! Video_Comments_Settings::is_enabled() ) {
-			return false;
-		}
-
-		if ( ! is_user_logged_in() && ! Video_Comments_Settings::allow_guests() ) {
-			return false;
-		}
-
-		if ( ! self::form_nonce_is_valid() ) {
-			return false;
-		}
-
-		$upload_id = self::posted_field( self::FORM_FIELD_UPLOAD );
-		$token     = self::posted_field( self::FORM_FIELD_TOKEN );
-
-		if ( '' === $upload_id || '' === $token ) {
-			return false;
-		}
-
-		if ( ! Video_Comments_REST::verify_upload_token( $upload_id, $token ) ) {
-			return false;
-		}
-
-		if ( ! Video_Comments_Settings::has_mux_credentials() ) {
+		$upload_id = $this->verified_posted_upload_id();
+		if ( null === $upload_id ) {
 			return false;
 		}
 
@@ -327,14 +307,104 @@ class Video_Comments_Comment_Meta {
 			return false;
 		}
 
+		return $this->authorize_upload( $upload_id );
+	}
+
+	/**
+	 * Treat a comment that carries its own finished video as new, even when its
+	 * text matches an earlier comment by the same author on the same post.
+	 *
+	 * Core compares author and text only, so without this a repeated caption
+	 * (or the always-empty body of a video-only comment) fails with 409 while
+	 * the video already sits on Mux, where only the daily sweep would reclaim it.
+	 * A replayed submission is still caught: its upload is retired once it is
+	 * attached, so the ownership check fails and the duplicate stands. Comments
+	 * without a video keep the normal protection.
+	 *
+	 * @param int                 $dupe_id     Comment ID core identified as a duplicate.
+	 * @param array<string,mixed> $commentdata Comment data (includes the keys added by preprocess_comment).
+	 * @return int 0 to proceed, or the duplicate ID to reject.
+	 */
+	public function skip_duplicate_check_for_video_comment( $dupe_id, array $commentdata ) {
+		if ( ! $dupe_id ) {
+			return $dupe_id;
+		}
+
+		$upload_id = (string) ( $commentdata['_vc_upload_id'] ?? '' );
+		if ( '' === $upload_id ) {
+			return $dupe_id;
+		}
+
+		// A video-only comment was already vetted by allow_video_only_comment().
+		if ( isset( self::$authorized_uploads[ $upload_id ] ) ) {
+			return 0;
+		}
+
+		// A comment with text normally has its upload checked only after insert;
+		// run the same checks now so the decision cannot differ from the attach.
+		if ( $upload_id !== $this->verified_posted_upload_id() ) {
+			return $dupe_id;
+		}
+
+		return $this->authorize_upload( $upload_id ) ? 0 : $dupe_id;
+	}
+
+	/**
+	 * The upload ID posted with the comment form, once every check that needs
+	 * no network request has passed: feature enabled, guests allowed if the
+	 * submitter is one, form nonce valid, upload token valid, Mux credentials set.
+	 *
+	 * @return string|null The upload ID, or null when any check fails.
+	 */
+	private function verified_posted_upload_id(): ?string {
+		if ( ! Video_Comments_Settings::is_enabled() ) {
+			return null;
+		}
+
+		if ( ! is_user_logged_in() && ! Video_Comments_Settings::allow_guests() ) {
+			return null;
+		}
+
+		if ( ! self::form_nonce_is_valid() ) {
+			return null;
+		}
+
+		$upload_id = self::posted_field( self::FORM_FIELD_UPLOAD );
+		$token     = self::posted_field( self::FORM_FIELD_TOKEN );
+
+		if ( '' === $upload_id || '' === $token ) {
+			return null;
+		}
+
+		if ( ! Video_Comments_REST::verify_upload_token( $upload_id, $token ) ) {
+			return null;
+		}
+
+		if ( ! Video_Comments_Settings::has_mux_credentials() ) {
+			return null;
+		}
+
+		return $upload_id;
+	}
+
+	/**
+	 * Confirm with Mux that an upload the submitter owns is playable and not
+	 * already attached to another comment, and remember it for this request.
+	 *
+	 * @param string $upload_id Upload ID returned by verified_posted_upload_id().
+	 */
+	private function authorize_upload( string $upload_id ): bool {
+		if ( isset( self::$authorized_uploads[ $upload_id ] ) ) {
+			return true;
+		}
+
 		$status = $this->resolve_upload_status( $upload_id );
 		if ( ! self::is_ready_status( $status ) ) {
 			return false;
 		}
 
-		// The video is the whole comment, so an asset that already belongs to
-		// another comment cannot carry a new empty one (see the same guard in
-		// save_comment_video_meta()).
+		// An asset that already belongs to another comment cannot carry a new one
+		// (see the same guard in save_comment_video_meta()).
 		if ( Video_Comments_Cleanup::asset_in_use( (string) $status['asset_id'] ) ) {
 			return false;
 		}
@@ -342,27 +412,6 @@ class Video_Comments_Comment_Meta {
 		self::$authorized_uploads[ $upload_id ] = $status;
 
 		return true;
-	}
-
-	/**
-	 * Skip core's duplicate check for an empty-body comment whose upload was
-	 * authorised in this request. Two empty bodies by the same author on the same
-	 * post always match, so without this a second video comment fails with 409.
-	 * Comments with text keep the normal protection.
-	 *
-	 * @param int                 $dupe_id     Comment ID core identified as a duplicate.
-	 * @param array<string,mixed> $commentdata Comment data (includes the keys added by preprocess_comment).
-	 * @return int 0 to proceed, or the duplicate ID to reject.
-	 */
-	public function skip_duplicate_check_for_video_only( $dupe_id, array $commentdata ) {
-		$content   = $commentdata['comment_content'] ?? '';
-		$upload_id = (string) ( $commentdata['_vc_upload_id'] ?? '' );
-
-		if ( is_string( $content ) && '' === trim( $content ) && '' !== $upload_id && isset( self::$authorized_uploads[ $upload_id ] ) ) {
-			return 0;
-		}
-
-		return $dupe_id;
 	}
 
 	/**

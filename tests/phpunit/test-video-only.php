@@ -207,6 +207,52 @@ class Test_Video_Comments_Video_Only extends WP_UnitTestCase {
 		$this->assertSame( 'comment_duplicate', $second->get_error_code() );
 	}
 
+	public function test_text_comment_with_its_own_video_is_not_a_duplicate(): void {
+		$first = $this->submit( 'same caption', $this->ready_upload_fields() );
+		Video_Comments_Comment_Meta::reset_request_state();
+		$second = $this->submit( 'same caption', $this->ready_upload_fields() );
+
+		$this->assertInstanceOf( WP_Comment::class, $first );
+		$this->assertInstanceOf( WP_Comment::class, $second, 'repeated caption is not a duplicate when it carries its own video' );
+		$this->assertNotSame( $first->comment_ID, $second->comment_ID );
+		$this->assertSame( 'pbVO1', Video_Comments_Comment_Meta::get_playback_id( (int) $first->comment_ID ) );
+		$this->assertSame( 'pbVO2', Video_Comments_Comment_Meta::get_playback_id( (int) $second->comment_ID ) );
+		$this->assertSame( 1, $this->mux_request_count( '/uploads/uplVO2' ), 'the duplicate check and the attach share one Mux lookup' );
+	}
+
+	public function test_replaying_a_text_comment_with_a_used_upload_is_still_a_duplicate(): void {
+		$fields = $this->ready_upload_fields();
+		$this->assertInstanceOf( WP_Comment::class, $this->submit( 'same caption', $fields ) );
+		Video_Comments_Comment_Meta::reset_request_state();
+		$requests = count( $this->mux_requests );
+
+		$second = $this->submit( 'same caption', $fields );
+
+		$this->assertInstanceOf( WP_Error::class, $second );
+		$this->assertSame( 'comment_duplicate', $second->get_error_code() );
+		$this->assertCount( $requests, $this->mux_requests, 'a retired token never reaches Mux' );
+	}
+
+	public function test_duplicate_text_comment_with_an_unfinished_upload_is_still_a_duplicate(): void {
+		$this->assertInstanceOf( WP_Comment::class, $this->submit( 'same caption' ) );
+
+		$upload_id                       = 'uplWaitingDupe';
+		$this->mux_uploads[ $upload_id ] = [
+			'status'   => 'waiting',
+			'asset_id' => null,
+		];
+		$second                          = $this->submit(
+			'same caption',
+			[
+				Video_Comments_Comment_Meta::FORM_FIELD_UPLOAD => $upload_id,
+				Video_Comments_Comment_Meta::FORM_FIELD_TOKEN  => $this->issue_token( $upload_id ),
+			]
+		);
+
+		$this->assertInstanceOf( WP_Error::class, $second );
+		$this->assertSame( 'comment_duplicate', $second->get_error_code() );
+	}
+
 	// -------------------------------------------------------------------------
 	// Rejections that never reach Mux
 	// -------------------------------------------------------------------------
