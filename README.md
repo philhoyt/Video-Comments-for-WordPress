@@ -1,4 +1,4 @@
-# Video Comments
+# Video Comments using Mux
 
 [![CI](https://github.com/philhoyt/Video-Comments-for-WordPress/actions/workflows/ci.yml/badge.svg)](https://github.com/philhoyt/Video-Comments-for-WordPress/actions/workflows/ci.yml)
 

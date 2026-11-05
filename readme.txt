@@ -1,4 +1,4 @@
-=== Video Comments ===
+=== Video Comments using Mux ===
 Contributors: philhoyt
 Tags: comments, video, mux, upload, media
 Requires at least: 6.0
