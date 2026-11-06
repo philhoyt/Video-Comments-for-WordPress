@@ -41,7 +41,10 @@ $video_comments_update_checker     = PucFactory::buildUpdateChecker(
 );
 $video_comments_update_checker_api = $video_comments_update_checker->getVcsApi();
 if ( method_exists( $video_comments_update_checker_api, 'enableReleaseAssets' ) ) {
-	$video_comments_update_checker_api->enableReleaseAssets( '/^video-comments\.zip$/' );
+	// REQUIRE_RELEASE_ASSETS: a release without a matching zip reports no update
+	// instead of falling back to GitHub's source archive, which installs as
+	// <Repo>-<tag>/ and breaks the plugin directory.
+	$video_comments_update_checker_api->enableReleaseAssets( '/^video-comments\.zip$/', $video_comments_update_checker_api::REQUIRE_RELEASE_ASSETS );
 }
 
 /**
