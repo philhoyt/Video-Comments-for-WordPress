@@ -4,7 +4,7 @@ Tags: comments, video, mux, upload, media
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.2.1
+Stable tag: 1.2.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -111,6 +111,10 @@ Check that your theme calls `wp_footer()`, that the Mux credentials are saved, a
 3. The settings page under Settings > Video Comments.
 
 == Changelog ==
+
+= 1.2.2 =
+* Fixed the update checker so a release that is missing its zip is skipped instead of installing GitHub's source archive.
+* Rewrote the readme files in plain English. The readme title now matches the plugin header.
 
 = 1.2.1 =
 * Fixed a comment with its own video being refused as a duplicate when its text repeated an earlier comment. WordPress compared only the author and text, so the video had already uploaded before the comment was rejected.
